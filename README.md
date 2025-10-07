@@ -1,29 +1,51 @@
-# Dockify Templates
+# Dockify Templates Repository
 
-Kubernetes manifest templates for deploying Docker images via ArgoCD.
+This repository contains **Kubernetes application templates** for Dockify's ArgoCD deployment system.
 
-## Structure
+## 📋 Repository Structure
 
-Each application has its own folder with:
-- `deployment.yaml` - Kubernetes Deployment
-- `service.yaml` - Kubernetes Service
-- `kustomization.yaml` - Kustomize config for dynamic image tags
-
-## Usage with ArgoCD
-
-ArgoCD will use Kustomize to set the image tag dynamically:
-
-```yaml
-spec:
-  source:
-    repoURL: https://github.com/AT-US/dockify-templates
-    path: nginx
-    kustomize:
-      images:
-        - nginx:1.29.1  # Tag set dynamically
+```
+dockify-templates/
+├── README.md
+├── nginx/
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── ingressroute.yaml
+│   └── kustomization.yaml
+└── n8n/
+    ├── deployment.yaml
+    ├── service.yaml
+    ├── ingressroute.yaml
+    └── kustomization.yaml
 ```
 
-## Available Templates
+## 🎯 How It Works
 
-- **nginx** - NGINX web server
-- More coming soon...
+Each template uses **Kustomize** for dynamic image tag replacement. ArgoCD patches:
+1. Image tag (e.g., `latest` → `1.29.1`)
+2. IngressRoute hostname (e.g., `uuid.w1.dockify.cloud`)
+3. SSL certificate (e.g., `wildcard-w1-dockify-cloud-tls`)
+
+## 📝 Creating a New Template
+
+### Required Files
+
+1. **deployment.yaml** - Deployment with `image:latest`
+2. **service.yaml** - ClusterIP service
+3. **ingressroute.yaml** - Traefik IngressRoute  
+4. **kustomization.yaml** - Kustomize config
+
+### ✅ Checklist
+
+- [ ] Folder name = all resource names
+- [ ] All ports match (container → service → ingress)
+- [ ] Image uses `:latest` tag
+- [ ] Resources have limits set
+- [ ] IngressRoute uses `websecure` entryPoint
+
+## 📚 Available Templates
+
+| Template | Image | Port |
+|----------|-------|------|
+| nginx | `nginx` | 80 |
+| n8n | `n8nio/n8n` | 5678 |
