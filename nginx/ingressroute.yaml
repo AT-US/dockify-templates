@@ -6,10 +6,10 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`example.com`)
-      kind: Rule
+    - kind: Rule
+      match: Host(`placeholder.example.com`)
       services:
         - name: nginx
           port: 80
   tls:
-    secretName: default-cert
+    secretName: placeholder-tls
