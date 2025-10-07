@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - cluster.yaml
   - secret.yaml
+  - ingressroute-tcp.yaml
