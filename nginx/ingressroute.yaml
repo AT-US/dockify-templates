@@ -1,15 +1,15 @@
 apiVersion: traefik.io/v1alpha1
-kind: IngressRouteTCP
+kind: IngressRoute
 metadata:
   name: nginx
 spec:
   entryPoints:
     - websecure
   routes:
-    - match: HostSNI(`*`)
+    - match: Host(`HOSTNAME_PLACEHOLDER`)
+      kind: Rule
       services:
         - name: nginx
           port: 80
   tls:
-    passthrough: false
     secretName: WILDCARD_CERT_SECRET

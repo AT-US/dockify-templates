@@ -4,7 +4,7 @@ kind: Kustomization
 resources:
   - deployment.yaml
   - service.yaml
-  - ingressroute-tcp.yaml
+  - ingressroute.yaml
 
 images:
   - name: nginx
