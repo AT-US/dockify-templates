@@ -9,7 +9,7 @@ spec:
   # Storage configuration
   storage:
     size: 1Gi
-    storageClass: local-path
+    storageClass: hcloud-volumes
 
   # Bootstrap configuration
   bootstrap:
