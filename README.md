@@ -49,3 +49,68 @@ Each template uses **Kustomize** for dynamic image tag replacement. ArgoCD patch
 |----------|-------|------|
 | nginx | `nginx` | 80 |
 | n8n | `n8nio/n8n` | 5678 |
+
+## 📄 Values File
+
+Each template includes a **values.yaml** file with default configuration:
+
+```yaml
+# values.yaml example
+app:
+  name: nginx
+
+image:
+  repository: nginx
+  tag: latest
+
+service:
+  port: 80
+
+ingress:
+  hostname: example.com
+  tls:
+    secretName: default-cert
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "200m"
+```
+
+**Purpose:**
+- Documents all configurable parameters
+- Provides sensible defaults
+- Makes templates self-documenting
+- Dockify API overrides these via Kustomize patches
+
+**Note:** values.yaml is for **documentation only**. Actual patching is done via Kustomize in ArgoCD Application spec.
+
+## 🔧 How Dockify Patches Templates
+
+When deploying, Dockify API sends Kustomize patches to ArgoCD:
+
+```yaml
+kustomize:
+  images:
+    - nginx:1.29.1  # Override image tag
+  patches:
+    - target:
+        kind: IngressRoute
+        name: nginx
+      patch: |
+        - op: replace
+          path: /spec/tls/secretName
+          value: wildcard-w1-dockify-cloud-tls
+        - op: replace
+          path: /spec/routes/0/match
+          value: Host(`abc123.w1.dockify.cloud`)
+```
+
+This approach:
+✅ Keeps templates clean and simple  
+✅ No template rendering needed  
+✅ GitOps compliant  
+✅ Easy to version control  

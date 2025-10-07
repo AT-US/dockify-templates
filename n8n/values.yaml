@@ -1,0 +1,41 @@
+# Default values for N8N deployment
+# These will be overridden by Dockify API via Kustomize patches
+
+app:
+  name: n8n
+
+image:
+  repository: n8nio/n8n
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicas: 1
+
+service:
+  type: ClusterIP
+  port: 5678
+  targetPort: 5678
+
+ingress:
+  enabled: true
+  hostname: example.com
+  tls:
+    secretName: default-cert
+
+env:
+  N8N_PORT: "5678"
+  N8N_PROTOCOL: "https"
+  WEBHOOK_URL: "https://example.com"
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+persistence:
+  enabled: false
+  size: 1Gi
+  storageClass: ""
