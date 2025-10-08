@@ -1,0 +1,16 @@
+---
+# Service for PgBouncer Pooler
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-pooler
+  namespace: default
+spec:
+  selector:
+    cnpg.io/poolerName: postgres-pooler
+  ports:
+    - name: pgbouncer
+      port: 5432
+      targetPort: 5432
+      protocol: TCP
+  type: ClusterIP

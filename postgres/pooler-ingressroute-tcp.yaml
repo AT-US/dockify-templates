@@ -1,0 +1,17 @@
+---
+# IngressRouteTCP for external Pooler access
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: postgres-pooler
+  namespace: default
+spec:
+  entryPoints:
+    - postgres
+  routes:
+    - match: HostSNI(`pooler.namespace.w1.dockify.cloud`)
+      services:
+        - name: postgres-pooler
+          port: 5432
+  tls:
+    passthrough: true

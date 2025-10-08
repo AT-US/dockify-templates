@@ -4,4 +4,13 @@ kind: Kustomization
 resources:
   - cluster.yaml
   - secret.yaml
+  - service.yaml
   - ingressroute-tcp.yaml
+  - pooler.yaml
+  - pooler-service.yaml
+  - pooler-ingressroute-tcp.yaml
+
+images:
+  - name: postgres
+    newName: ghcr.io/cloudnative-pg/postgresql
+    newTag: "16"

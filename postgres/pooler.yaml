@@ -1,0 +1,44 @@
+---
+# PgBouncer Pooler for PostgreSQL Cluster
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: postgres-pooler
+  namespace: default
+spec:
+  cluster:
+    name: postgres
+
+  instances: 3
+  type: rw
+
+  pgbouncer:
+    poolMode: session
+    parameters:
+      max_client_conn: "1000"
+      default_pool_size: "25"
+      reserve_pool_size: "5"
+      max_db_connections: "100"
+      max_user_connections: "100"
+      log_connections: "1"
+      log_disconnections: "1"
+
+  # Monitoring
+  monitoring:
+    enablePodMonitor: true
+
+  # Resources for PgBouncer pods
+  template:
+    metadata:
+      labels:
+        app: postgres-pooler
+    spec:
+      containers:
+        - name: pgbouncer
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
