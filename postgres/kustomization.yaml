@@ -5,8 +5,12 @@ resources:
   - cluster.yaml
   - secret.yaml
   - ingressroute-tcp.yaml
+  - ingressroute-tcp-ro.yaml
+  - ingressroute-tcp-r.yaml
   - pooler.yaml
   - pooler-ingressroute-tcp.yaml
+  - pooler-ingressroute-tcp-ro.yaml
+  - pooler-ingressroute-tcp-r.yaml
 
 images:
   - name: postgres
