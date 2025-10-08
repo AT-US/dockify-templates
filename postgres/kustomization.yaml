@@ -8,6 +8,8 @@ resources:
   - ingressroute-tcp-ro.yaml
   - ingressroute-tcp-r.yaml
   - pooler.yaml
+  - pooler-ro.yaml
+  - pooler-r.yaml
   - pooler-ingressroute-tcp.yaml
   - pooler-ingressroute-tcp-ro.yaml
   - pooler-ingressroute-tcp-r.yaml
