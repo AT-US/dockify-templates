@@ -4,7 +4,6 @@ kind: Kustomization
 resources:
   - cluster.yaml
   - secret.yaml
-  - service.yaml
   - ingressroute-tcp.yaml
   - pooler.yaml
   - pooler-service.yaml
