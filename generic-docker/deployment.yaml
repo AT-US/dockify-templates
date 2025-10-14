@@ -12,9 +12,13 @@ spec:
       labels:
         app: app
     spec:
+      # Image pull secret for private registries (GHCR, Docker Hub, etc.)
+      imagePullSecrets:
+      - name: ghcr-secret
       containers:
       - name: app
         image: app:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
         env:
