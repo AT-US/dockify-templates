@@ -79,4 +79,4 @@ spec:
         - name: wildcard-tls
           secret:
             secretName: wildcard-w1-dockify-cloud-tls
-            defaultMode: 0600
+            defaultMode: 0640
