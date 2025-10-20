@@ -11,4 +11,5 @@ spec:
         - name: postgresql
           port: 5432
   tls:
+    passthrough: false
     secretName: wildcard-w1-dockify-cloud-tls
