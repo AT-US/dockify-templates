@@ -11,5 +11,4 @@ spec:
         - name: postgresql
           port: 5432
   tls:
-    secretName: wildcard-placeholder-tls
-    passthrough: false
+    passthrough: true
