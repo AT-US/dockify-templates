@@ -17,6 +17,14 @@ spec:
       containers:
         - name: postgresql
           image: postgres:17.2-alpine
+          command:
+            - postgres
+            - -c
+            - ssl=on
+            - -c
+            - ssl_cert_file=/ssl/tls.crt
+            - -c
+            - ssl_key_file=/ssl/tls.key
           ports:
             - containerPort: 5432
               name: postgres
@@ -38,6 +46,9 @@ spec:
           volumeMounts:
             - name: postgresql-storage
               mountPath: /var/lib/postgresql/data
+            - name: wildcard-tls
+              mountPath: /ssl
+              readOnly: true
           resources:
             requests:
               memory: "256Mi"
@@ -65,3 +76,7 @@ spec:
         - name: postgresql-storage
           persistentVolumeClaim:
             claimName: postgresql-pvc
+        - name: wildcard-tls
+          secret:
+            secretName: wildcard-w1-dockify-cloud-tls
+            defaultMode: 0600
