@@ -14,36 +14,9 @@ spec:
       labels:
         app: postgresql
     spec:
-      initContainers:
-        - name: generate-ssl-certs
-          image: postgres:17.2-alpine
-          command:
-            - /bin/sh
-            - -c
-            - |
-              if [ ! -f /ssl/server.crt ]; then
-                apk add --no-cache openssl
-                openssl req -new -x509 -days 3650 -nodes -text \
-                  -out /ssl/server.crt \
-                  -keyout /ssl/server.key \
-                  -subj "/CN=postgresql.local"
-                chmod 0600 /ssl/server.key
-                chown 70:70 /ssl/server.key /ssl/server.crt
-              fi
-          volumeMounts:
-            - name: ssl-certs
-              mountPath: /ssl
       containers:
         - name: postgresql
           image: postgres:17.2-alpine
-          command:
-            - postgres
-            - -c
-            - ssl=on
-            - -c
-            - ssl_cert_file=/ssl/server.crt
-            - -c
-            - ssl_key_file=/ssl/server.key
           ports:
             - containerPort: 5432
               name: postgres
@@ -65,8 +38,6 @@ spec:
           volumeMounts:
             - name: postgresql-storage
               mountPath: /var/lib/postgresql/data
-            - name: ssl-certs
-              mountPath: /ssl
           resources:
             requests:
               memory: "256Mi"
@@ -94,5 +65,3 @@ spec:
         - name: postgresql-storage
           persistentVolumeClaim:
             claimName: postgresql-pvc
-        - name: ssl-certs
-          emptyDir: {}
