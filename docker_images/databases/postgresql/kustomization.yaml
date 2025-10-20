@@ -6,6 +6,7 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+  - ingressroute-tcp.yaml
 
 namespace: default
 
