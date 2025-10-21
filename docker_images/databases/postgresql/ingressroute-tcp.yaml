@@ -11,6 +11,4 @@ spec:
         - name: postgresql
           port: 5432
   tls:
-    secretName: wildcard-w1-dockify-cloud-tls
-    domains:
-      - main: "placeholder.dockify.cloud"
+    passthrough: true
