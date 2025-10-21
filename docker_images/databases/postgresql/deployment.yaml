@@ -14,34 +14,9 @@ spec:
       labels:
         app: postgresql
     spec:
-      initContainers:
-        - name: copy-certs
-          image: postgres:17.2-alpine
-          command:
-            - sh
-            - -c
-            - |
-              cp /ssl-source/tls.crt /ssl/tls.crt
-              cp /ssl-source/tls.key /ssl/tls.key
-              chmod 600 /ssl/tls.key
-              chmod 644 /ssl/tls.crt
-              chown 70:70 /ssl/tls.key /ssl/tls.crt
-          volumeMounts:
-            - name: wildcard-tls
-              mountPath: /ssl-source
-              readOnly: true
-            - name: ssl-certs-writable
-              mountPath: /ssl
       containers:
         - name: postgresql
           image: postgres:17.2-alpine
-          args:
-            - -c
-            - ssl=on
-            - -c
-            - ssl_cert_file=/ssl/tls.crt
-            - -c
-            - ssl_key_file=/ssl/tls.key
           ports:
             - containerPort: 5432
               name: postgres
@@ -61,8 +36,6 @@ spec:
           volumeMounts:
             - name: postgresql-storage
               mountPath: /var/lib/postgresql/data
-            - name: ssl-certs-writable
-              mountPath: /ssl
           resources:
             requests:
               memory: "256Mi"
@@ -90,8 +63,3 @@ spec:
         - name: postgresql-storage
           persistentVolumeClaim:
             claimName: postgresql-pvc
-        - name: wildcard-tls
-          secret:
-            secretName: wildcard-w1-dockify-cloud-tls
-        - name: ssl-certs-writable
-          emptyDir: {}
