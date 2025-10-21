@@ -11,9 +11,17 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # Allow traffic only from pods in the SAME namespace
+    # Allow traffic from pods in the SAME namespace
     - from:
         - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow traffic from Traefik (for external access via IngressRouteTCP)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
       ports:
         - protocol: TCP
           port: 5432
