@@ -8,6 +8,7 @@ resources:
   - service.yaml
   - ingressroute-tcp.yaml
   - networkpolicy.yaml
+  - configmap.yaml
 
 namespace: default
 
