@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgresql-network-policy
+  labels:
+    app: postgresql
+spec:
+  podSelector:
+    matchLabels:
+      app: postgresql
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic only from pods in the SAME namespace
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432
