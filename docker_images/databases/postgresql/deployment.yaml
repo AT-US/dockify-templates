@@ -35,7 +35,7 @@ spec:
               value: "mydb"
           volumeMounts:
             - name: postgresql-storage
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql
           resources:
             requests:
               memory: "256Mi"
