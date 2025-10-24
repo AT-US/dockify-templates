@@ -2,16 +2,16 @@
 
 ## ✅ Features Enabled by Default
 
-This PostgreSQL deployment comes with **EVERYTHING ENABLED** out of the box:
+This PostgreSQL deployment comes with **PRODUCTION-READY FEATURES** enabled out of the box:
 
 - ✅ **PostgreSQL Database** - Latest stable version (17.2-alpine)
 - ✅ **PgBouncer Connection Pooling** - High-availability setup with 2 replicas
-- ✅ **Automatic Daily Backups** - Scheduled at 3 AM UTC with 7-day retention
 - ✅ **Production Optimizations** - Pre-configured for best performance
 - ✅ **Health Checks** - Liveness, readiness, and startup probes
 - ✅ **External Access** - Via Traefik IngressRouteTCP with TLS
 - ✅ **Essential Extensions** - pg_stat_statements, pg_trgm, uuid-ossp
 - ✅ **Monitoring Support** - Dedicated monitoring user for health checks
+- ⏸️ **Automatic Daily Backups** - Available but disabled by default (uncomment in kustomization.yaml to enable)
 
 ## Overview
 
@@ -36,12 +36,13 @@ This PostgreSQL deployment comes with **EVERYTHING ENABLED** out of the box:
 - Session affinity for stability
 - External access via separate IngressRouteTCP
 
-### 3. Automated Backups
+### 3. Automated Backups (Currently Disabled - Enable in kustomization.yaml)
 - CronJob running daily at 3 AM UTC
 - pg_dump with compression
 - 7-day retention policy
 - Dedicated PVC for backup storage
 - Optional backup access pod for manual recovery
+- **To enable**: Uncomment `backup-simple.yaml` in `kustomization.yaml`
 
 ### 4. Production Configuration
 - Optimized memory settings for containers
@@ -78,8 +79,11 @@ This PostgreSQL deployment comes with **EVERYTHING ENABLED** out of the box:
    psql -h pgbouncer.namespace.svc.cluster.local -p 6432 -U postgres -d mydb
    ```
 
-3. **Check Backup Status**:
+3. **Enable and Check Backups** (Optional):
    ```bash
+   # First enable in kustomization.yaml, then apply:
+   kubectl apply -k .
+
    # View backup job status
    kubectl get cronjob postgresql-backup
 
@@ -154,12 +158,13 @@ gunzip < /backups/backup_20240124_030000.sql.gz | psql -h postgresql -U postgres
 
 ## Customization
 
-All components are enabled by default. If you need to disable something:
+Most components are enabled by default. Backups are currently disabled but can be easily enabled:
 
 1. Edit `kustomization.yaml`
-2. Comment out unwanted resources
-3. Redeploy with `kubectl apply -k .`
+2. Uncomment `backup-simple.yaml` to enable backups
+3. Comment out any unwanted resources to disable them
+4. Redeploy with `kubectl apply -k .`
 
 ## Support
 
-This template is production-ready with all features enabled by default. No manual configuration needed!
+This template is production-ready with essential features enabled by default. Backup is available but needs to be manually enabled when needed!
