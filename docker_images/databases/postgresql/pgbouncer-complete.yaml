@@ -1,0 +1,175 @@
+# PgBouncer Complete Setup - Connection Pooler for PostgreSQL
+# Includes: Deployment, Service, ConfigMap, and IngressRouteTCP for external access
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgbouncer-config
+  labels:
+    app: pgbouncer
+    app.kubernetes.io/name: pgbouncer
+    app.kubernetes.io/component: connection-pooler
+data:
+  # Note: This basic config uses trust auth for simplicity
+  # For production, use md5/scram-sha-256 with proper userlist
+  pgbouncer.ini: |
+    [databases]
+    * = host=postgresql port=5432
+
+    [pgbouncer]
+    listen_addr = 0.0.0.0
+    listen_port = 6432
+    auth_type = trust
+    pool_mode = transaction
+    max_client_conn = 1000
+    default_pool_size = 25
+    min_pool_size = 5
+    reserve_pool_size = 5
+    server_reset_query = DISCARD ALL
+    server_idle_timeout = 600
+    idle_transaction_timeout = 60
+    ignore_startup_parameters = extra_float_digits
+    admin_users = postgres
+    stats_users = postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  labels:
+    app: pgbouncer
+    app.kubernetes.io/name: pgbouncer
+    app.kubernetes.io/component: connection-pooler
+spec:
+  replicas: 2  # HA setup with 2 replicas
+  selector:
+    matchLabels:
+      app: pgbouncer
+      app.kubernetes.io/name: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+        app.kubernetes.io/name: pgbouncer
+        app.kubernetes.io/component: connection-pooler
+    spec:
+      containers:
+        - name: pgbouncer
+          image: pgbouncer/pgbouncer:latest  # Official image
+          ports:
+            - containerPort: 6432
+              name: pgbouncer
+          env:
+            # Database connection
+            - name: DATABASES_HOST
+              value: "postgresql"
+            - name: DATABASES_PORT
+              value: "5432"
+            - name: DATABASES_DBNAME
+              value: "mydb"
+            - name: DATABASES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: username
+            - name: DATABASES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: password
+            # PgBouncer configuration
+            - name: POOL_MODE
+              value: "transaction"
+            - name: MAX_CLIENT_CONN
+              value: "1000"
+            - name: DEFAULT_POOL_SIZE
+              value: "25"
+            - name: MIN_POOL_SIZE
+              value: "5"
+            - name: RESERVE_POOL_SIZE
+              value: "5"
+            - name: AUTH_TYPE
+              value: "md5"
+            - name: SERVER_IDLE_TIMEOUT
+              value: "600"
+            - name: IDLE_TRANSACTION_TIMEOUT
+              value: "60"
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "25m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+          livenessProbe:
+            tcpSocket:
+              port: 6432
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 6432
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      # Spread replicas across nodes for HA
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - pgbouncer
+                topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer
+  labels:
+    app: pgbouncer
+    app.kubernetes.io/name: pgbouncer
+    app.kubernetes.io/component: connection-pooler
+spec:
+  type: ClusterIP
+  selector:
+    app: pgbouncer
+    app.kubernetes.io/name: pgbouncer
+  ports:
+    - port: 6432
+      targetPort: 6432
+      protocol: TCP
+      name: pgbouncer
+  sessionAffinity: ClientIP  # Stick sessions to same PgBouncer instance
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+---
+# External access via Traefik IngressRouteTCP
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: pgbouncer
+  labels:
+    app: pgbouncer
+    app.kubernetes.io/name: pgbouncer
+    managed-by: dockify
+spec:
+  entryPoints:
+    - postgres  # Uses port 5432 externally
+  routes:
+    - match: HostSNI(`pgb.example.com`)  # Will be replaced by Kustomize
+      services:
+        - name: pgbouncer
+          port: 6432
+  tls:
+    secretName: wildcard-tls  # Will be replaced by Kustomize
+    domains:
+      - main: pgb.example.com  # Will be replaced by Kustomize
