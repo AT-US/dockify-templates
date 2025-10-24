@@ -165,11 +165,12 @@ spec:
   entryPoints:
     - postgres  # Uses port 5432 externally
   routes:
-    - match: HostSNI(`pgb.example.com`)  # Will be replaced by Kustomize
+    - match: HostSNI(`pgb-placeholder.dockify.cloud`)  # Will be replaced by Kustomize
       services:
         - name: pgbouncer
           port: 6432
   tls:
-    secretName: wildcard-tls  # Will be replaced by Kustomize
+    # TLS required for SNI routing!
+    secretName: wildcard-dockify-cloud-tls  # Will be replaced by Kustomize
     domains:
-      - main: pgb.example.com  # Will be replaced by Kustomize
+      - main: pgb-placeholder.dockify.cloud  # Will be replaced by Kustomize

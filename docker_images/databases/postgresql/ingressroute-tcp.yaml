@@ -13,7 +13,10 @@ spec:
       services:
         - name: postgresql
           port: 5432
-  # TLS disabled - PostgreSQL handles its own SSL/TLS
-  # For TLS passthrough (if needed), uncomment and add passthrough: true
-  # tls:
-  #   passthrough: true
+  # TLS required for SNI routing to work!
+  tls:
+    # TLS termination - Traefik handles TLS with wildcard cert
+    # PostgreSQL receives unencrypted traffic from Traefik
+    secretName: wildcard-dockify-cloud-tls
+    domains:
+      - main: placeholder.dockify.cloud

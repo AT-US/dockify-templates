@@ -7,6 +7,7 @@
 1. **Traefik must have a TCP entrypoint on port 5432** (see TRAEFIK_CONFIG_REQUIRED.md)
 2. **Firewall/Security Group must allow inbound TCP on port 5432**
 3. **LoadBalancer must expose port 5432**
+4. **TLS is REQUIRED for SNI routing** (uses wildcard certificate)
 
 Without these, external connections will fail!
 
@@ -73,11 +74,14 @@ Without these, external connections will fail!
 
    **External Connection (from Internet)**:
    ```bash
-   # Direct connection (no SSL/TLS)
+   # Direct connection (TLS handled by Traefik)
    psql -h your-hostname.w2.dockify.cloud -p 5432 -U postgres -d mydb
 
    # Connection string
    postgresql://postgres:yourpassword@your-hostname.w2.dockify.cloud:5432/mydb
+
+   # If using PgBouncer (when enabled)
+   psql -h pgb-your-hostname.w2.dockify.cloud -p 5432 -U postgres -d mydb
    ```
 
    **Internal Connection (from within cluster)**:
@@ -113,16 +117,18 @@ Without these, external connections will fail!
 ### Direct PostgreSQL (Default)
 - **Port**: 5432
 - **Protocol**: PostgreSQL wire protocol
-- **TLS**: Not configured (use SSH tunnel or VPN for secure connections)
+- **Ingress**: Traefik IngressRouteTCP with SNI routing
+- **TLS**: Terminated at Traefik (PostgreSQL receives plain TCP from Traefik)
 
 ### Via PgBouncer (When Enabled)
-- **Port**: 6432 (internal), 5432 (external)
+- **Port**: 6432 (internal), 5432 (external via Traefik)
+- **Hostname**: `pgb-{timestamp}.{domain}` (separate from PostgreSQL)
 - **Connection Pooling**: Transaction mode
 - **Max Connections**: 1000
 
 ## Security Notes
 
-⚠️ **Important**: External connections are NOT encrypted by default. For production use with sensitive data:
+⚠️ **Important**: TLS is terminated at Traefik. The connection between Traefik and PostgreSQL is unencrypted. For enhanced security:
 
 1. **Use SSH Tunneling**:
    ```bash
