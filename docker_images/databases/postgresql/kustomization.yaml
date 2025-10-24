@@ -7,12 +7,12 @@ resources:
   - configmap.yaml
   - deployment.yaml
   - service.yaml
-  - pgbouncer-deployment.yaml
-  - pgbouncer-service.yaml
   - ingressroute-tcp.yaml
   - networkpolicy.yaml
-  # Uncomment for backups:
-  # - backup-simple.yaml
+  # Optional components (uncomment if needed):
+  # - pgbouncer-deployment.yaml  # Connection pooling (requires config fixes)
+  # - pgbouncer-service.yaml     # PgBouncer service
+  # - backup-simple.yaml         # Backup CronJob
 
 namespace: default
 
