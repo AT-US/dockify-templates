@@ -4,6 +4,9 @@ metadata:
   name: postgresql
 spec:
   entryPoints:
+    # IMPORTANT: Requires 'postgres' TCP entrypoint on port 5432 in Traefik!
+    # If missing, add to Traefik: ports.postgres.port=5432 ports.postgres.protocol=TCP
+    # Also ensure firewall/security group allows inbound TCP on port 5432
     - postgres
   routes:
     - match: HostSNI(`placeholder.dockify.cloud`)

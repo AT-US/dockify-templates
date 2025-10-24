@@ -1,5 +1,15 @@
 # PostgreSQL Docker Template for Dockify - Production Ready
 
+## 🚨 IMPORTANT: PORT 5432 MUST BE OPEN!
+
+**PostgreSQL requires TCP port 5432 to be configured:**
+
+1. **Traefik must have a TCP entrypoint on port 5432** (see TRAEFIK_CONFIG_REQUIRED.md)
+2. **Firewall/Security Group must allow inbound TCP on port 5432**
+3. **LoadBalancer must expose port 5432**
+
+Without these, external connections will fail!
+
 ## ✅ Features Overview
 
 **Enabled by default:**
