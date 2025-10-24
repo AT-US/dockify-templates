@@ -9,8 +9,8 @@ resources:
   - service.yaml
   - ingressroute-tcp.yaml
   - networkpolicy.yaml
-  # PgBouncer Connection Pooling - ENABLED by default
-  - pgbouncer-complete.yaml     # Full PgBouncer setup with HA
+  # PgBouncer Connection Pooling - DISABLED by default (uncomment to enable)
+  # - pgbouncer-complete.yaml   # Full PgBouncer setup with HA
   # Backup Solution - DISABLED temporarily (uncomment to enable)
   # - backup-simple.yaml         # Daily backups to local PVC
 

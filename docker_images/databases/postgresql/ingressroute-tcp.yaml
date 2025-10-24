@@ -10,7 +10,7 @@ spec:
       services:
         - name: postgresql
           port: 5432
-  tls:
-    secretName: wildcard-w1-dockify-cloud-tls
-    domains:
-      - main: placeholder.dockify.cloud
+  # TLS disabled - PostgreSQL handles its own SSL/TLS
+  # For TLS passthrough (if needed), uncomment and add passthrough: true
+  # tls:
+  #   passthrough: true
