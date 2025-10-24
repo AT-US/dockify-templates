@@ -14,7 +14,7 @@ spec:
       protocol: TCP
       name: postgres
   selector:
-    # CRITICAL: Use specific instance label, not generic "app"
-    # This will be replaced by Kustomize with actual instance name
+    # CRITICAL: Use specific instance label for proper isolation
+    # The instance label will be unique for each deployment
     app.kubernetes.io/name: postgresql
-    app.kubernetes.io/component: database
+    app.kubernetes.io/instance: postgresql  # Will be unique per deployment

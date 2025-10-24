@@ -78,7 +78,7 @@ spec:
   resources:
     requests:
       storage: 5Gi
-  storageClassName: hcloud-volumes
+  storageClassName: longhorn  # Default storage class for Dockify
 ---
 # Pod pentru a accesa backup-urile manual
 apiVersion: apps/v1
