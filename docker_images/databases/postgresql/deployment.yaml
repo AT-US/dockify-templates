@@ -102,8 +102,8 @@ spec:
           configMap:
             name: postgresql-config
             optional: true
-      # Security context
-      securityContext:
-        fsGroup: 999
-        runAsUser: 999
-        runAsNonRoot: true
+      # Security context - commented for now due to volume mount issues
+      # securityContext:
+      #   fsGroup: 999
+      #   runAsUser: 999
+      #   runAsNonRoot: true
