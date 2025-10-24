@@ -1,0 +1,278 @@
+# PostgreSQL Backup to Cloudflare R2 (S3-compatible)
+# R2 Benefits:
+# - 10GB FREE storage/month
+# - NO egress fees (unlike AWS S3!)
+# - S3 API compatible
+# - Automatic lifecycle policies
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backup-r2-credentials
+type: Opaque
+stringData:
+  # Get these from Cloudflare Dashboard > R2 > Manage R2 API tokens
+  access-key-id: "YOUR_R2_ACCESS_KEY_ID"
+  secret-access-key: "YOUR_R2_SECRET_ACCESS_KEY"
+  endpoint: "https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com"
+  bucket: "postgresql-backups"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgresql-backup-r2
+  labels:
+    app: postgresql-backup
+spec:
+  # Every 6 hours for important data, daily for less critical
+  schedule: "0 */6 * * *"  # Change to "0 2 * * *" for daily at 2 AM
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: postgresql-backup
+        spec:
+          restartPolicy: OnFailure
+          initContainers:
+            # Install rclone for R2 upload
+            - name: setup
+              image: alpine:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Install rclone
+                  wget -q https://downloads.rclone.org/rclone-current-linux-amd64.zip
+                  unzip -q rclone-current-linux-amd64.zip
+                  cp rclone-*/rclone /shared/rclone
+                  chmod +x /shared/rclone
+
+                  # Configure rclone for R2
+                  cat > /shared/rclone.conf <<EOF
+                  [r2]
+                  type = s3
+                  provider = Cloudflare
+                  access_key_id = $(cat /r2-creds/access-key-id)
+                  secret_access_key = $(cat /r2-creds/secret-access-key)
+                  endpoint = $(cat /r2-creds/endpoint)
+                  acl = private
+                  EOF
+              volumeMounts:
+                - name: shared
+                  mountPath: /shared
+                - name: r2-credentials
+                  mountPath: /r2-creds
+              resources:
+                limits:
+                  memory: "128Mi"
+                  cpu: "100m"
+          containers:
+            - name: backup
+              image: postgres:17.2-alpine
+              env:
+                - name: PGHOST
+                  value: "pgbouncer"  # Use PgBouncer for backup
+                - name: PGPORT
+                  value: "6432"
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgresql-secret
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgresql-secret
+                      key: password
+                - name: PGDATABASE
+                  value: "mydb"
+                - name: RETENTION_DAYS
+                  value: "7"  # Keep backups for 7 days
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+
+                  # Variables
+                  DATE=$(date +%Y%m%d_%H%M%S)
+                  NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+                  BACKUP_NAME="${NAMESPACE}_${PGDATABASE}_${DATE}"
+                  BUCKET=$(cat /r2-creds/bucket)
+
+                  echo "🔵 Starting PostgreSQL backup..."
+                  echo "📅 Date: ${DATE}"
+                  echo "🗄️ Database: ${PGDATABASE}"
+                  echo "📦 Namespace: ${NAMESPACE}"
+
+                  # Create backup with compression
+                  echo "📝 Running pg_dump..."
+                  pg_dump \
+                    --verbose \
+                    --clean \
+                    --if-exists \
+                    --no-owner \
+                    --no-privileges | gzip -9 > /tmp/backup.sql.gz
+
+                  # Check backup size
+                  SIZE=$(du -h /tmp/backup.sql.gz | cut -f1)
+                  echo "✅ Backup created: ${SIZE}"
+
+                  # Create metadata file
+                  cat > /tmp/metadata.json <<EOF
+                  {
+                    "timestamp": "$(date -Iseconds)",
+                    "database": "${PGDATABASE}",
+                    "namespace": "${NAMESPACE}",
+                    "size": "${SIZE}",
+                    "retention_days": ${RETENTION_DAYS}
+                  }
+                  EOF
+
+                  # Upload to R2 using rclone
+                  echo "☁️ Uploading to Cloudflare R2..."
+                  /shared/rclone --config=/shared/rclone.conf \
+                    copy /tmp/backup.sql.gz r2:${BUCKET}/${NAMESPACE}/${BACKUP_NAME}.sql.gz
+
+                  /shared/rclone --config=/shared/rclone.conf \
+                    copy /tmp/metadata.json r2:${BUCKET}/${NAMESPACE}/${BACKUP_NAME}.json
+
+                  echo "✅ Upload complete!"
+
+                  # Clean old backups from R2
+                  echo "🧹 Cleaning old backups..."
+                  /shared/rclone --config=/shared/rclone.conf \
+                    delete r2:${BUCKET}/${NAMESPACE} \
+                    --min-age ${RETENTION_DAYS}d \
+                    --include "*.sql.gz"
+
+                  # List current backups
+                  echo "📂 Current backups in R2:"
+                  /shared/rclone --config=/shared/rclone.conf \
+                    ls r2:${BUCKET}/${NAMESPACE} \
+                    --include "*.sql.gz" | tail -5
+
+                  echo "🎉 Backup completed successfully!"
+
+                  # Send notification (optional - webhook)
+                  if [ ! -z "$WEBHOOK_URL" ]; then
+                    wget -qO- --post-data="{\"text\":\"✅ PostgreSQL backup completed: ${BACKUP_NAME} (${SIZE})\"}" \
+                      --header="Content-Type: application/json" \
+                      $WEBHOOK_URL || true
+                  fi
+              volumeMounts:
+                - name: shared
+                  mountPath: /shared
+                - name: r2-credentials
+                  mountPath: /r2-creds
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
+          volumes:
+            - name: shared
+              emptyDir: {}
+            - name: r2-credentials
+              secret:
+                secretName: backup-r2-credentials
+---
+# Manual restore job (run when needed)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-restore
+  labels:
+    app: postgresql-restore
+spec:
+  template:
+    metadata:
+      labels:
+        app: postgresql-restore
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: download
+          image: rclone/rclone:latest
+          env:
+            - name: BACKUP_FILE
+              value: "CHANGE_ME.sql.gz"  # Specify backup to restore
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Configure rclone
+              rclone config create r2 s3 \
+                provider=Cloudflare \
+                access_key_id=$(cat /r2-creds/access-key-id) \
+                secret_access_key=$(cat /r2-creds/secret-access-key) \
+                endpoint=$(cat /r2-creds/endpoint)
+
+              # Download backup
+              BUCKET=$(cat /r2-creds/bucket)
+              NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+
+              echo "Downloading ${BACKUP_FILE} from R2..."
+              rclone copy r2:${BUCKET}/${NAMESPACE}/${BACKUP_FILE} /restore/
+
+              echo "Backup downloaded successfully!"
+              ls -lh /restore/
+          volumeMounts:
+            - name: restore
+              mountPath: /restore
+            - name: r2-credentials
+              mountPath: /r2-creds
+      containers:
+        - name: restore
+          image: postgres:17.2-alpine
+          env:
+            - name: PGHOST
+              value: "postgresql"
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: password
+            - name: PGDATABASE
+              value: "mydb"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "🔄 Starting PostgreSQL restore..."
+
+              # Find backup file
+              BACKUP=$(ls /restore/*.sql.gz | head -1)
+
+              if [ -z "$BACKUP" ]; then
+                echo "❌ No backup file found!"
+                exit 1
+              fi
+
+              echo "📦 Restoring from: $(basename $BACKUP)"
+              echo "⚠️ WARNING: This will replace all existing data!"
+              sleep 5
+
+              # Restore database
+              gunzip -c $BACKUP | psql
+
+              echo "✅ Restore completed successfully!"
+          volumeMounts:
+            - name: restore
+              mountPath: /restore
+      volumes:
+        - name: restore
+          emptyDir: {}
+        - name: r2-credentials
+          secret:
+            secretName: backup-r2-credentials

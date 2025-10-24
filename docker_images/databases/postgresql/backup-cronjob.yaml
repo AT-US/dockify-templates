@@ -1,0 +1,193 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgresql-backup
+  labels:
+    app: postgresql-backup
+    app.kubernetes.io/name: postgresql-backup
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: postgresql-cluster
+spec:
+  # Schedule: Daily at 2 AM UTC
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: postgresql-backup
+            app.kubernetes.io/name: postgresql-backup
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: postgres-backup
+              image: postgres:17.2-alpine
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: PGHOST
+                  value: "postgresql"
+                - name: PGPORT
+                  value: "5432"
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgresql-secret
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgresql-secret
+                      key: password
+                - name: PGDATABASE
+                  value: "mydb"
+                - name: BACKUP_RETENTION_DAYS
+                  value: "30"
+                - name: S3_BUCKET
+                  value: "postgresql-backups"  # Change this to your S3 bucket
+                - name: S3_ENDPOINT
+                  value: "https://s3.amazonaws.com"  # Or your S3-compatible endpoint
+                - name: S3_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-s3-credentials
+                      key: access-key
+                      optional: true
+                - name: S3_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-s3-credentials
+                      key: secret-key
+                      optional: true
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -e
+
+                  # Generate backup filename with timestamp
+                  BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
+                  BACKUP_FILENAME="backup_${PGDATABASE}_${BACKUP_DATE}.sql.gz"
+                  LOCAL_BACKUP_PATH="/tmp/${BACKUP_FILENAME}"
+
+                  echo "🔵 Starting backup of database: ${PGDATABASE}"
+                  echo "📅 Backup date: ${BACKUP_DATE}"
+
+                  # Create backup with pg_dump
+                  echo "📦 Creating backup..."
+                  pg_dump \
+                    --verbose \
+                    --no-password \
+                    --clean \
+                    --if-exists \
+                    --create \
+                    --no-owner \
+                    --no-privileges \
+                    --format=plain \
+                    --encoding=UTF8 \
+                    ${PGDATABASE} | gzip -9 > ${LOCAL_BACKUP_PATH}
+
+                  # Check backup size
+                  BACKUP_SIZE=$(ls -lh ${LOCAL_BACKUP_PATH} | awk '{print $5}')
+                  echo "✅ Backup created successfully: ${BACKUP_FILENAME} (${BACKUP_SIZE})"
+
+                  # Option 1: Upload to S3 (if credentials are provided)
+                  if [ ! -z "$S3_ACCESS_KEY" ] && [ ! -z "$S3_SECRET_KEY" ]; then
+                    echo "☁️  Uploading to S3..."
+
+                    # Install AWS CLI if not present
+                    if ! command -v aws &> /dev/null; then
+                      apk add --no-cache aws-cli
+                    fi
+
+                    # Configure AWS CLI
+                    aws configure set aws_access_key_id ${S3_ACCESS_KEY}
+                    aws configure set aws_secret_access_key ${S3_SECRET_KEY}
+
+                    # Upload to S3
+                    aws s3 cp ${LOCAL_BACKUP_PATH} s3://${S3_BUCKET}/postgresql/${BACKUP_FILENAME} \
+                      --endpoint-url ${S3_ENDPOINT}
+
+                    echo "✅ Backup uploaded to S3: s3://${S3_BUCKET}/postgresql/${BACKUP_FILENAME}"
+
+                    # Clean old backups from S3
+                    echo "🧹 Cleaning old backups (keeping last ${BACKUP_RETENTION_DAYS} days)..."
+                    aws s3 ls s3://${S3_BUCKET}/postgresql/ --endpoint-url ${S3_ENDPOINT} | \
+                      while read -r line; do
+                        createDate=$(echo $line | awk '{print $1" "$2}')
+                        createDate=$(date -d "$createDate" +%s 2>/dev/null || date -j -f "%Y-%m-%d %H:%M:%S" "$createDate" +%s)
+                        olderThan=$(date -d "${BACKUP_RETENTION_DAYS} days ago" +%s)
+                        if [[ $createDate -lt $olderThan ]]; then
+                          fileName=$(echo $line | awk '{print $4}')
+                          echo "  Deleting old backup: $fileName"
+                          aws s3 rm s3://${S3_BUCKET}/postgresql/${fileName} --endpoint-url ${S3_ENDPOINT}
+                        fi
+                      done
+                  fi
+
+                  # Option 2: Save to PVC (local persistent volume)
+                  if [ -d "/backups" ]; then
+                    echo "💾 Saving to local persistent volume..."
+                    cp ${LOCAL_BACKUP_PATH} /backups/${BACKUP_FILENAME}
+
+                    # Clean old local backups
+                    echo "🧹 Cleaning old local backups..."
+                    find /backups -name "backup_*.sql.gz" -type f -mtime +${BACKUP_RETENTION_DAYS} -delete
+
+                    # List current backups
+                    echo "📂 Current local backups:"
+                    ls -lh /backups/backup_*.sql.gz 2>/dev/null || echo "  No backups found"
+                  fi
+
+                  # Verify backup integrity
+                  echo "🔍 Verifying backup integrity..."
+                  gunzip -t ${LOCAL_BACKUP_PATH}
+                  if [ $? -eq 0 ]; then
+                    echo "✅ Backup integrity verified"
+                  else
+                    echo "❌ Backup integrity check failed!"
+                    exit 1
+                  fi
+
+                  # Clean temporary file
+                  rm -f ${LOCAL_BACKUP_PATH}
+
+                  echo "🎉 Backup process completed successfully!"
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: postgresql-backup-pvc
+                optional: true  # Make it optional in case PVC doesn't exist
+          # Security context
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            fsGroup: 999
+---
+# PVC for local backup storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql-backup-pvc
+  labels:
+    app: postgresql-backup
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi  # Adjust based on your backup needs
+  storageClassName: hcloud-volumes  # Change to your storage class

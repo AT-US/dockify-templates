@@ -4,15 +4,22 @@ metadata:
   name: postgresql
   labels:
     app: postgresql
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: postgresql-cluster
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: postgresql
+      app.kubernetes.io/name: postgresql
   template:
     metadata:
       labels:
         app: postgresql
+        app.kubernetes.io/name: postgresql
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: postgresql-cluster
     spec:
       containers:
         - name: postgresql
@@ -33,33 +40,70 @@ spec:
                   key: password
             - name: POSTGRES_DB
               value: "mydb"
+            - name: PGDATA
+              value: "/var/lib/postgresql/data/pgdata"
+            # Performance tuning for production
+            - name: POSTGRES_INITDB_ARGS
+              value: "--encoding=UTF8 --locale=en_US.UTF-8"
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "scram-sha-256"
           volumeMounts:
             - name: postgresql-storage
-              mountPath: /var/lib/postgresql
+              mountPath: /var/lib/postgresql/data
+            - name: postgresql-config
+              mountPath: /etc/postgresql
+              readOnly: true
           resources:
             requests:
-              memory: "256Mi"
+              memory: "512Mi"
               cpu: "250m"
             limits:
-              memory: "1Gi"
+              memory: "2Gi"
               cpu: "1000m"
+          # Enhanced health checks
           livenessProbe:
             exec:
               command:
                 - /bin/sh
                 - -c
-                - pg_isready -U $POSTGRES_USER
+                - pg_isready -U $POSTGRES_USER -h localhost -p 5432
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             exec:
               command:
                 - /bin/sh
                 - -c
-                - pg_isready -U $POSTGRES_USER
+                - |
+                  pg_isready -U $POSTGRES_USER -h localhost -p 5432 && \
+                  psql -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT 1" > /dev/null 2>&1
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Startup probe for slow starts
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U $POSTGRES_USER -h localhost -p 5432
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
       volumes:
         - name: postgresql-storage
           persistentVolumeClaim:
             claimName: postgresql-pvc
+        - name: postgresql-config
+          configMap:
+            name: postgresql-config
+            optional: true
+      # Security context
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsNonRoot: true

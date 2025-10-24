@@ -4,11 +4,15 @@ kind: Kustomization
 resources:
   - secret.yaml
   - pvc.yaml
+  - configmap.yaml
   - deployment.yaml
   - service.yaml
+  - pgbouncer-deployment.yaml
+  - pgbouncer-service.yaml
   - ingressroute-tcp.yaml
   - networkpolicy.yaml
-  - configmap.yaml
+  # Uncomment for backups:
+  # - backup-simple.yaml
 
 namespace: default
 

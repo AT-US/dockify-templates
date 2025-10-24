@@ -4,6 +4,8 @@ metadata:
   name: postgresql
   labels:
     app: postgresql
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: database
 spec:
   type: ClusterIP
   ports:
@@ -12,4 +14,7 @@ spec:
       protocol: TCP
       name: postgres
   selector:
-    app: postgresql
+    # CRITICAL: Use specific instance label, not generic "app"
+    # This will be replaced by Kustomize with actual instance name
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: database

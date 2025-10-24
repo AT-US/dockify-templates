@@ -1,0 +1,117 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgresql-backup
+  labels:
+    app: postgresql-backup
+    app.kubernetes.io/name: postgresql-backup
+    app.kubernetes.io/component: backup
+spec:
+  # Schedule: Daily at 3 AM UTC (modify as needed)
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: postgresql-backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: postgres:17.2-alpine
+              env:
+                - name: PGHOST
+                  value: "postgresql"
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgresql-secret
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgresql-secret
+                      key: password
+                - name: PGDATABASE
+                  value: "mydb"
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
+                  BACKUP_FILE="/backups/backup_${BACKUP_DATE}.sql.gz"
+
+                  echo "Starting backup: ${BACKUP_FILE}"
+                  pg_dump --clean --if-exists | gzip > ${BACKUP_FILE}
+
+                  # Keep only last 7 backups
+                  cd /backups && ls -t backup_*.sql.gz | tail -n +8 | xargs rm -f 2>/dev/null || true
+
+                  echo "Backup completed! Current backups:"
+                  ls -lh /backups/
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "200m"
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: postgresql-backup-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql-backup-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: hcloud-volumes
+---
+# Pod pentru a accesa backup-urile manual
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backup-access
+  labels:
+    app: backup-access
+spec:
+  replicas: 0  # Scale to 1 when needed
+  selector:
+    matchLabels:
+      app: backup-access
+  template:
+    metadata:
+      labels:
+        app: backup-access
+    spec:
+      containers:
+        - name: alpine
+          image: alpine:latest
+          command: ["/bin/sh", "-c", "while true; do sleep 86400; done"]
+          volumeMounts:
+            - name: backup-storage
+              mountPath: /backups
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "10m"
+            limits:
+              memory: "64Mi"
+              cpu: "50m"
+      volumes:
+        - name: backup-storage
+          persistentVolumeClaim:
+            claimName: postgresql-backup-pvc

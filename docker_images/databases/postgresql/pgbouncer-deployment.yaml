@@ -1,0 +1,164 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  labels:
+    app: pgbouncer
+    app.kubernetes.io/name: pgbouncer
+    app.kubernetes.io/component: connection-pooler
+    app.kubernetes.io/part-of: postgresql-cluster
+spec:
+  replicas: 2  # Multiple replicas for HA
+  selector:
+    matchLabels:
+      app: pgbouncer
+      app.kubernetes.io/name: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+        app.kubernetes.io/name: pgbouncer
+        app.kubernetes.io/component: connection-pooler
+        app.kubernetes.io/part-of: postgresql-cluster
+    spec:
+      containers:
+        - name: pgbouncer
+          image: bitnami/pgbouncer:1.22.0
+          ports:
+            - containerPort: 6432
+              name: pgbouncer
+          env:
+            - name: POSTGRESQL_HOST
+              value: "postgresql"
+            - name: POSTGRESQL_PORT
+              value: "5432"
+            - name: POSTGRESQL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: username
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: password
+            - name: POSTGRESQL_DATABASE
+              value: "mydb"
+            # PgBouncer configuration
+            - name: PGBOUNCER_PORT
+              value: "6432"
+            - name: PGBOUNCER_BIND_ADDRESS
+              value: "0.0.0.0"
+            - name: PGBOUNCER_DATABASE
+              value: "mydb"
+            - name: PGBOUNCER_POOL_MODE
+              value: "transaction"  # Best for web apps
+            - name: PGBOUNCER_MAX_CLIENT_CONN
+              value: "1000"
+            - name: PGBOUNCER_DEFAULT_POOL_SIZE
+              value: "25"
+            - name: PGBOUNCER_MIN_POOL_SIZE
+              value: "5"
+            - name: PGBOUNCER_RESERVE_POOL_SIZE
+              value: "5"
+            - name: PGBOUNCER_RESERVE_POOL_TIMEOUT
+              value: "5"
+            - name: PGBOUNCER_MAX_DB_CONNECTIONS
+              value: "100"
+            - name: PGBOUNCER_MAX_USER_CONNECTIONS
+              value: "100"
+            - name: PGBOUNCER_IDLE_TRANSACTION_TIMEOUT
+              value: "60"
+            - name: PGBOUNCER_SERVER_IDLE_TIMEOUT
+              value: "600"
+            - name: PGBOUNCER_SERVER_LIFETIME
+              value: "3600"
+            - name: PGBOUNCER_QUERY_WAIT_TIMEOUT
+              value: "120"
+            - name: PGBOUNCER_CLIENT_IDLE_TIMEOUT
+              value: "0"
+            - name: PGBOUNCER_CLIENT_LOGIN_TIMEOUT
+              value: "60"
+            - name: PGBOUNCER_IGNORE_STARTUP_PARAMETERS
+              value: "extra_float_digits,options"
+            # Stats settings
+            - name: PGBOUNCER_STATS_USERS
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: username
+            - name: PGBOUNCER_STATS_PERIOD
+              value: "60"
+            # Auth settings
+            - name: PGBOUNCER_AUTH_TYPE
+              value: "scram-sha-256"
+            - name: PGBOUNCER_AUTH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: username
+            - name: PGBOUNCER_AUTH_QUERY
+              value: "SELECT usename, passwd FROM pg_shadow WHERE usename=$1"
+            # Logging
+            - name: PGBOUNCER_LOG_CONNECTIONS
+              value: "1"
+            - name: PGBOUNCER_LOG_DISCONNECTIONS
+              value: "1"
+            - name: PGBOUNCER_LOG_POOLER_ERRORS
+              value: "1"
+            - name: PGBOUNCER_LOG_STATS
+              value: "1"
+            - name: PGBOUNCER_VERBOSE
+              value: "0"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          # Health checks
+          livenessProbe:
+            tcpSocket:
+              port: 6432
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "SELECT 1" | PGPASSWORD=$POSTGRESQL_PASSWORD psql -h localhost -p 6432 -U $POSTGRESQL_USERNAME -d $POSTGRESQL_DATABASE > /dev/null 2>&1
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Startup probe
+          startupProbe:
+            tcpSocket:
+              port: 6432
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+      # Anti-affinity to spread replicas across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - pgbouncer
+                topologyKey: kubernetes.io/hostname
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
