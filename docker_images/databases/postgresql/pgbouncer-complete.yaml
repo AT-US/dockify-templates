@@ -41,7 +41,7 @@ metadata:
     app.kubernetes.io/name: pgbouncer
     app.kubernetes.io/component: connection-pooler
 spec:
-  replicas: 2  # HA setup with 2 replicas
+  replicas: 1  # Single instance
   selector:
     matchLabels:
       app: pgbouncer
