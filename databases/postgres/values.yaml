@@ -1,0 +1,43 @@
+# Deployment info
+namespace: ""          # Required - project UUID
+name: "postgres"       # Deployment name
+
+# Image
+image: postgres
+tag: "16.3"
+
+# Database credentials
+database:
+  name: postgres
+  username: postgres
+  password: ""         # Required - generated at deploy
+
+# Resources (from plan)
+resources:
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+  limits:
+    cpu: "500m"
+    memory: "1Gi"
+
+# Storage
+storage:
+  size: "10Gi"
+  storageClass: ""     # Uses default if empty
+
+# Network
+service:
+  type: NodePort
+  port: 5432
+  nodePort: 30432      # Required - allocated by API
+
+# Resource Quota & Limits (namespace level)
+quota:
+  enabled: true
+
+# Health checks
+healthCheck:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10

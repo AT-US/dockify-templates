@@ -1,0 +1,9 @@
+apiVersion: v2
+name: postgres
+description: PostgreSQL database for Dockify
+type: application
+version: 1.0.0
+appVersion: "16.3"
+maintainers:
+  - name: Dockify
+    url: https://dockify.app

@@ -1,0 +1,17 @@
+{{- if .Values.quota.enabled }}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ include "postgres.fullname" . }}-quota
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "postgres.labels" . | nindent 4 }}
+spec:
+  hard:
+    requests.cpu: {{ .Values.resources.limits.cpu }}
+    requests.memory: {{ .Values.resources.limits.memory }}
+    limits.cpu: {{ .Values.resources.limits.cpu }}
+    limits.memory: {{ .Values.resources.limits.memory }}
+    persistentvolumeclaims: "1"
+    pods: "1"
+{{- end }}
