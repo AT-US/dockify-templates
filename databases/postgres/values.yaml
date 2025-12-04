@@ -33,8 +33,9 @@ service:
   nodePort: 30432      # Required - allocated by API
 
 # Resource Quota & Limits (namespace level)
+# Disabled by default - allows multiple deployments per namespace
 quota:
-  enabled: true
+  enabled: false
 
 # Health checks
 healthCheck:
