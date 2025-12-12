@@ -29,7 +29,11 @@ spec:
                 name: {{ include "postgres.secretName" . }}
           env:
             - name: PGDATA
+              {{- if contains "timescale" .Values.image }}
+              value: /var/lib/postgresql/pgdata
+              {{- else }}
               value: /var/lib/postgresql/data/pgdata
+              {{- end }}
           resources:
             requests:
               cpu: {{ .Values.resources.requests.cpu }}
@@ -39,7 +43,11 @@ spec:
               memory: {{ .Values.resources.limits.memory }}
           volumeMounts:
             - name: postgres-data
+              {{- if contains "timescale" .Values.image }}
+              mountPath: /var/lib/postgresql
+              {{- else }}
               mountPath: /var/lib/postgresql/data
+              {{- end }}
             {{- if .Values.extensions.enabled }}
             - name: init-scripts
               mountPath: /docker-entrypoint-initdb.d
@@ -73,7 +81,11 @@ spec:
                 command:
                   - /bin/sh
                   - -c
+                  {{- if contains "timescale" .Values.image }}
+                  - su - postgres -c "pg_ctl stop -D /var/lib/postgresql/pgdata -m fast"
+                  {{- else }}
                   - su - postgres -c "pg_ctl stop -D /var/lib/postgresql/data/pgdata -m fast"
+                  {{- end }}
       volumes:
         - name: postgres-data
           persistentVolumeClaim:
