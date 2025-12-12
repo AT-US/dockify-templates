@@ -42,3 +42,14 @@ healthCheck:
   enabled: true
   initialDelaySeconds: 30
   periodSeconds: 10
+
+# PostgreSQL Extensions (built-in, auto-enabled at first boot)
+# These run via /docker-entrypoint-initdb.d/ only on fresh databases
+extensions:
+  enabled: true
+  list:
+    - pg_stat_statements  # Performance monitoring & query stats
+    - pg_trgm             # Fuzzy text search, autocomplete
+    - pgcrypto            # Cryptographic functions
+    - citext              # Case-insensitive text type
+    - unaccent            # Remove accents for search (diacritics)

@@ -40,6 +40,11 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
+            {{- if .Values.extensions.enabled }}
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+            {{- end }}
           {{- if .Values.healthCheck.enabled }}
           livenessProbe:
             exec:
@@ -73,4 +78,9 @@ spec:
         - name: postgres-data
           persistentVolumeClaim:
             claimName: {{ include "postgres.fullname" . }}-pvc
+        {{- if .Values.extensions.enabled }}
+        - name: init-scripts
+          configMap:
+            name: {{ include "postgres.fullname" . }}-init
+        {{- end }}
       terminationGracePeriodSeconds: 30

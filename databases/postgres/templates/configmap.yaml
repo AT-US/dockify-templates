@@ -1,0 +1,21 @@
+{{/*
+ConfigMap for PostgreSQL init scripts
+Only created when extensions are enabled
+*/}}
+{{- if .Values.extensions.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "postgres.fullname" . }}-init
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "postgres.labels" . | nindent 4 }}
+data:
+  01-extensions.sql: |
+    -- PostgreSQL Extensions (auto-enabled by Dockify)
+    -- This script runs ONCE at database initialization
+    -- Extensions are persisted in pg_extension catalog
+    {{- range .Values.extensions.list }}
+    CREATE EXTENSION IF NOT EXISTS "{{ . }}";
+    {{- end }}
+{{- end }}
