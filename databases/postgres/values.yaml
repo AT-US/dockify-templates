@@ -57,8 +57,8 @@ extensions:
 # PgBouncer - Connection Pooler (sidecar)
 pgbouncer:
   enabled: false
-  image: bitnami/pgbouncer
-  tag: "1.23.1"
+  image: edoburu/pgbouncer
+  tag: "1.24.1-p1"
   port: 6432                    # Internal PgBouncer port
   nodePort: 30433               # External NodePort for PgBouncer
   poolMode: transaction         # transaction | session | statement

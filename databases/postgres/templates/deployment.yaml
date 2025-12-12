@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         {{- if .Values.pgbouncer.enabled }}
-        # PgBouncer Sidecar - Connection Pooler
+        # PgBouncer Sidecar - Connection Pooler (edoburu/pgbouncer)
         - name: pgbouncer
           image: {{ .Values.pgbouncer.image }}:{{ .Values.pgbouncer.tag }}
           ports:
@@ -27,33 +27,38 @@ spec:
               name: pgbouncer
               protocol: TCP
           env:
-            - name: POSTGRESQL_HOST
+            # Database connection (localhost sidecar)
+            - name: DB_HOST
               value: "127.0.0.1"
-            - name: POSTGRESQL_PORT
+            - name: DB_PORT
               value: "5432"
-            - name: POSTGRESQL_USERNAME
+            - name: DB_USER
               value: {{ .Values.database.username | quote }}
-            - name: POSTGRESQL_PASSWORD
+            - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "postgres.secretName" . }}
                   key: POSTGRES_PASSWORD
-            - name: POSTGRESQL_DATABASE
+            - name: DB_NAME
               value: {{ .Values.database.name | quote }}
-            - name: PGBOUNCER_PORT
+            # PgBouncer settings
+            - name: LISTEN_PORT
               value: {{ .Values.pgbouncer.port | quote }}
-            - name: PGBOUNCER_POOL_MODE
+            - name: POOL_MODE
               value: {{ .Values.pgbouncer.poolMode | quote }}
-            - name: PGBOUNCER_MAX_CLIENT_CONN
+            - name: MAX_CLIENT_CONN
               value: {{ .Values.pgbouncer.maxClientConn | quote }}
-            - name: PGBOUNCER_DEFAULT_POOL_SIZE
+            - name: DEFAULT_POOL_SIZE
               value: {{ .Values.pgbouncer.defaultPoolSize | quote }}
-            - name: PGBOUNCER_MIN_POOL_SIZE
+            - name: MIN_POOL_SIZE
               value: {{ .Values.pgbouncer.minPoolSize | quote }}
-            - name: PGBOUNCER_RESERVE_POOL_SIZE
+            - name: RESERVE_POOL_SIZE
               value: {{ .Values.pgbouncer.reservePoolSize | quote }}
-            - name: PGBOUNCER_IGNORE_STARTUP_PARAMETERS
+            - name: IGNORE_STARTUP_PARAMETERS
               value: "extra_float_digits"
+            # Auth type
+            - name: AUTH_TYPE
+              value: "scram-sha-256"
           resources:
             requests:
               cpu: {{ .Values.pgbouncer.resources.requests.cpu }}
