@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "postgres.fullname" . }}-service
+  name: {{ include "postgres.fullname" . }}
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "postgres.labels" . | nindent 4 }}
@@ -17,3 +17,12 @@ spec:
       nodePort: {{ .Values.service.nodePort }}
       {{- end }}
       protocol: TCP
+    {{- if .Values.pgbouncer.enabled }}
+    - name: pgbouncer
+      port: {{ .Values.pgbouncer.port }}
+      targetPort: {{ .Values.pgbouncer.port }}
+      {{- if eq .Values.service.type "NodePort" }}
+      nodePort: {{ .Values.pgbouncer.nodePort }}
+      {{- end }}
+      protocol: TCP
+    {{- end }}

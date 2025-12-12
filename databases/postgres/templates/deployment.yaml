@@ -18,6 +18,65 @@ spec:
         {{- include "postgres.labels" . | nindent 8 }}
     spec:
       containers:
+        {{- if .Values.pgbouncer.enabled }}
+        # PgBouncer Sidecar - Connection Pooler
+        - name: pgbouncer
+          image: {{ .Values.pgbouncer.image }}:{{ .Values.pgbouncer.tag }}
+          ports:
+            - containerPort: {{ .Values.pgbouncer.port }}
+              name: pgbouncer
+              protocol: TCP
+          env:
+            - name: POSTGRESQL_HOST
+              value: "127.0.0.1"
+            - name: POSTGRESQL_PORT
+              value: "5432"
+            - name: POSTGRESQL_USERNAME
+              value: {{ .Values.database.username | quote }}
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres.secretName" . }}
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRESQL_DATABASE
+              value: {{ .Values.database.name | quote }}
+            - name: PGBOUNCER_PORT
+              value: {{ .Values.pgbouncer.port | quote }}
+            - name: PGBOUNCER_POOL_MODE
+              value: {{ .Values.pgbouncer.poolMode | quote }}
+            - name: PGBOUNCER_MAX_CLIENT_CONN
+              value: {{ .Values.pgbouncer.maxClientConn | quote }}
+            - name: PGBOUNCER_DEFAULT_POOL_SIZE
+              value: {{ .Values.pgbouncer.defaultPoolSize | quote }}
+            - name: PGBOUNCER_MIN_POOL_SIZE
+              value: {{ .Values.pgbouncer.minPoolSize | quote }}
+            - name: PGBOUNCER_RESERVE_POOL_SIZE
+              value: {{ .Values.pgbouncer.reservePoolSize | quote }}
+            - name: PGBOUNCER_IGNORE_STARTUP_PARAMETERS
+              value: "extra_float_digits"
+          resources:
+            requests:
+              cpu: {{ .Values.pgbouncer.resources.requests.cpu }}
+              memory: {{ .Values.pgbouncer.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.pgbouncer.resources.limits.cpu }}
+              memory: {{ .Values.pgbouncer.resources.limits.memory }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.pgbouncer.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.pgbouncer.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+        {{- end }}
+        # PostgreSQL Container
         - name: postgres
           image: {{ .Values.image }}:{{ .Values.tag }}
           ports:

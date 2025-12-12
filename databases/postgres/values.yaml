@@ -53,3 +53,23 @@ extensions:
     - pgcrypto            # Cryptographic functions
     - citext              # Case-insensitive text type
     - unaccent            # Remove accents for search (diacritics)
+
+# PgBouncer - Connection Pooler (sidecar)
+pgbouncer:
+  enabled: false
+  image: bitnami/pgbouncer
+  tag: "1.23.1"
+  port: 6432                    # Internal PgBouncer port
+  nodePort: 30433               # External NodePort for PgBouncer
+  poolMode: transaction         # transaction | session | statement
+  maxClientConn: 100            # Max client connections
+  defaultPoolSize: 20           # Connections per user/database pair
+  minPoolSize: 5                # Min connections to keep open
+  reservePoolSize: 5            # Extra connections for burst
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
