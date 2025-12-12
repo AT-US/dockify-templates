@@ -58,7 +58,7 @@ extensions:
 pgbouncer:
   enabled: false
   image: edoburu/pgbouncer
-  tag: "1.24.1-p1"
+  tag: "v1.24.1-p1"
   port: 6432                    # Internal PgBouncer port
   nodePort: 30433               # External NodePort for PgBouncer
   poolMode: transaction         # transaction | session | statement
