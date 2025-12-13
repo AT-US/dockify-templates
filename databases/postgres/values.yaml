@@ -101,17 +101,25 @@ postgresConfig:
   idle_in_transaction_session_timeout: "0"
 
 # PgBouncer - Connection Pooler (sidecar)
+# Configuration auto-generated based on plan and PostgreSQL max_connections
 pgbouncer:
   enabled: false
   image: edoburu/pgbouncer
   tag: "v1.24.1-p1"
   port: 6432                    # Internal PgBouncer port
   nodePort: 30433               # External NodePort for PgBouncer
+  # Pool Configuration
   poolMode: transaction         # transaction | session | statement
-  maxClientConn: 100            # Max client connections
-  defaultPoolSize: 20           # Connections per user/database pair
-  minPoolSize: 5                # Min connections to keep open
+  maxClientConn: 1000           # Max client connections to PgBouncer
+  defaultPoolSize: 20           # Connections to PostgreSQL per user/db pair
+  minPoolSize: 5                # Keep connections warm
   reservePoolSize: 5            # Extra connections for burst
+  # Timeouts (seconds, 0 = disabled)
+  reservePoolTimeout: 5         # Wait for reserve pool connection
+  serverIdleTimeout: 600        # Close idle server connections (10 min)
+  serverConnectTimeout: 15      # Connect to PostgreSQL timeout
+  queryTimeout: 0               # Query execution timeout (0 = no limit)
+  clientIdleTimeout: 0          # Close idle client connections (0 = no limit)
   resources:
     requests:
       cpu: "50m"

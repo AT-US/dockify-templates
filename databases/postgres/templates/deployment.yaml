@@ -54,6 +54,27 @@ spec:
               value: {{ .Values.pgbouncer.minPoolSize | quote }}
             - name: RESERVE_POOL_SIZE
               value: {{ .Values.pgbouncer.reservePoolSize | quote }}
+            # Timeouts
+            {{- if .Values.pgbouncer.reservePoolTimeout }}
+            - name: RESERVE_POOL_TIMEOUT
+              value: {{ .Values.pgbouncer.reservePoolTimeout | quote }}
+            {{- end }}
+            {{- if .Values.pgbouncer.serverIdleTimeout }}
+            - name: SERVER_IDLE_TIMEOUT
+              value: {{ .Values.pgbouncer.serverIdleTimeout | quote }}
+            {{- end }}
+            {{- if .Values.pgbouncer.serverConnectTimeout }}
+            - name: SERVER_CONNECT_TIMEOUT
+              value: {{ .Values.pgbouncer.serverConnectTimeout | quote }}
+            {{- end }}
+            {{- if .Values.pgbouncer.queryTimeout }}
+            - name: QUERY_TIMEOUT
+              value: {{ .Values.pgbouncer.queryTimeout | quote }}
+            {{- end }}
+            {{- if .Values.pgbouncer.clientIdleTimeout }}
+            - name: CLIENT_IDLE_TIMEOUT
+              value: {{ .Values.pgbouncer.clientIdleTimeout | quote }}
+            {{- end }}
             - name: IGNORE_STARTUP_PARAMETERS
               value: "extra_float_digits"
             # Auth type
