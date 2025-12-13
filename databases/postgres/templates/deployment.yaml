@@ -84,6 +84,10 @@ spec:
         # PostgreSQL Container
         - name: postgres
           image: {{ .Values.image }}:{{ .Values.tag }}
+          args:
+            - postgres
+            - -c
+            - log_min_messages={{ .Values.logging.minMessages }}
           ports:
             - containerPort: 5432
               name: postgres

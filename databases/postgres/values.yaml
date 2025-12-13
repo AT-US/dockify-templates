@@ -54,6 +54,12 @@ extensions:
     - citext              # Case-insensitive text type
     - unaccent            # Remove accents for search (diacritics)
 
+# Logging configuration
+# log_min_messages controls which message levels are sent to the server log
+# Valid values: debug, info, notice, warning, error, log, fatal, panic
+logging:
+  minMessages: "warning"    # Default: warnings and above
+
 # PgBouncer - Connection Pooler (sidecar)
 pgbouncer:
   enabled: false
