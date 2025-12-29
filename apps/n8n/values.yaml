@@ -1,0 +1,61 @@
+# n8n Helm Chart Values
+# This chart deploys n8n workflow automation with Cloudflare Tunnel exposure
+#
+# IMPORTANT: n8n uses User Management (email + password) for authentication
+# Basic Auth was deprecated - first user creates account on initial setup
+
+namespace: ""
+name: ""
+
+image: n8nio/n8n
+tag: latest
+
+# Encryption key for credentials (REQUIRED - must be persistent!)
+# If not set, n8n auto-generates one, but it won't persist across restarts
+encryptionKey: ""
+
+# Resource allocation
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+# Persistent storage for SQLite DB + workflows + credentials
+storage:
+  size: 10Gi
+  storageClass: ""  # Uses default if empty
+
+# Cloudflare Tunnel configuration (NOT NodePort!)
+tunnel:
+  enabled: true
+  fqdn: ""  # e.g., myapp-n8n.dockify.cloud
+  clusterTunnel: main-dockify-app-tunnel
+
+# Internal service (ClusterIP, not NodePort)
+service:
+  type: ClusterIP
+  port: 5678
+
+# n8n environment variables
+# See: https://docs.n8n.io/hosting/configuration/environment-variables/
+env:
+  # Deployment settings
+  N8N_HOST: "0.0.0.0"
+  N8N_PORT: "5678"
+  N8N_PROTOCOL: "https"  # Via Cloudflare Tunnel
+  # N8N_EDITOR_BASE_URL is auto-set from tunnel.fqdn
+  # WEBHOOK_URL is auto-set from tunnel.fqdn
+
+  # Timezone
+  GENERIC_TIMEZONE: "Europe/Bucharest"
+
+  # Execution settings
+  EXECUTIONS_MODE: "regular"
+  EXECUTIONS_TIMEOUT: "3600"
+  EXECUTIONS_TIMEOUT_MAX: "7200"
+
+  # Security
+  N8N_SECURE_COOKIE: "true"
