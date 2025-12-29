@@ -32,7 +32,7 @@ storage:
 tunnel:
   enabled: true
   fqdn: ""  # e.g., myapp-n8n.dockify.cloud
-  clusterTunnel: main-dockify-app-tunnel
+  clusterTunnel: s1-dockify-cloud-tunnel
 
 # Internal service (ClusterIP, not NodePort)
 service:
