@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: n8n
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: dockify
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Required for PVC with ReadWriteOnce
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/instance: {{ .Values.name }}
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: n8n
+          image: {{ .Values.image }}:{{ .Values.tag }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5678
+              protocol: TCP
+          env:
+            # Encryption key from secret (REQUIRED)
+            - name: N8N_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.name }}-secret
+                  key: N8N_ENCRYPTION_KEY
+            # Deployment settings
+            - name: N8N_HOST
+              value: {{ .Values.env.N8N_HOST | quote }}
+            - name: N8N_PORT
+              value: {{ .Values.env.N8N_PORT | quote }}
+            - name: N8N_PROTOCOL
+              value: {{ .Values.env.N8N_PROTOCOL | quote }}
+            {{- if .Values.tunnel.enabled }}
+            # Public URL for webhooks and editor access
+            - name: N8N_EDITOR_BASE_URL
+              value: "https://{{ .Values.tunnel.fqdn }}"
+            - name: WEBHOOK_URL
+              value: "https://{{ .Values.tunnel.fqdn }}"
+            {{- end }}
+            # Timezone
+            - name: GENERIC_TIMEZONE
+              value: {{ .Values.env.GENERIC_TIMEZONE | quote }}
+            # Execution settings
+            - name: EXECUTIONS_MODE
+              value: {{ .Values.env.EXECUTIONS_MODE | quote }}
+            - name: EXECUTIONS_TIMEOUT
+              value: {{ .Values.env.EXECUTIONS_TIMEOUT | quote }}
+            - name: EXECUTIONS_TIMEOUT_MAX
+              value: {{ .Values.env.EXECUTIONS_TIMEOUT_MAX | quote }}
+            # Security
+            - name: N8N_SECURE_COOKIE
+              value: {{ .Values.env.N8N_SECURE_COOKIE | quote }}
+          volumeMounts:
+            - name: n8n-data
+              mountPath: /home/node/.n8n
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: n8n-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.name }}-pvc
