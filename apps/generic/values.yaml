@@ -1,0 +1,83 @@
+# Dockify Generic App Helm Chart Values
+# This chart deploys source-built applications with Cloudflare Tunnel exposure
+# and optional Infisical secrets integration
+
+# Required: Deployment identifiers
+namespace: ""      # Kubernetes namespace (e.g., dockify-apps)
+name: ""           # App name (e.g., my-nextjs-app)
+deploymentId: ""   # Dockify deployment ID (for labels/tracking)
+
+# Required: Container image (from GHCR after build)
+image:
+  repository: ""   # e.g., ghcr.io/owner/repo
+  tag: ""          # e.g., main or commit SHA
+  pullPolicy: IfNotPresent
+
+# Container port (detected from railpack or default 3000)
+port: 3000
+
+# Resource allocation (from pricing plan)
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Replicas (can be scaled via HPA later)
+replicas: 1
+
+# Cloudflare Tunnel configuration
+tunnel:
+  enabled: true
+  fqdn: ""                                  # e.g., myapp.dockify.cloud
+  clusterTunnel: s1-dockify-cloud-tunnel    # ClusterTunnel name
+
+# Internal service configuration
+service:
+  type: ClusterIP
+  port: 80  # External port, maps to container port
+
+# Infisical secrets integration (optional)
+infisical:
+  enabled: false
+  hostAPI: https://vault.dockify.app/api
+  resyncInterval: 60
+  projectId: ""           # Dockify secrets project ID
+  envSlug: "dev"          # Environment slug
+  secretsPath: ""         # e.g., /apps/my-nextjs-app/
+  credentialsRef:
+    secretName: infisical-machine-identity
+    secretNamespace: infisical-system
+
+# Environment variables (static, non-secret)
+env: {}
+  # Example:
+  # NODE_ENV: production
+  # LOG_LEVEL: info
+
+# Health checks
+healthCheck:
+  enabled: true
+  path: /              # Health check endpoint
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Image pull secrets (for private GHCR images)
+imagePullSecrets:
+  - name: ghcr-credentials
+
+# Pod annotations (e.g., for Prometheus scraping)
+podAnnotations: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
