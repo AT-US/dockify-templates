@@ -70,6 +70,18 @@ healthCheck:
 imagePullSecrets:
   - name: ghcr-credentials
 
+# GHCR credentials (InfisicalSecret for docker pull)
+ghcr:
+  enabled: true
+  hostAPI: https://vault.dockify.app/api
+  resyncInterval: 300
+  projectId: "88b2b14a-f15c-4bed-8381-acde0b3e44f3"  # Dockify secrets project
+  envSlug: "dev"
+  secretsPath: /build-worker/                        # Path where GHCR_USERNAME and GHCR_TOKEN are stored
+  credentialsRef:
+    secretName: infisical-machine-identity
+    secretNamespace: infisical-system
+
 # Pod annotations (e.g., for Prometheus scraping)
 podAnnotations: {}
 
