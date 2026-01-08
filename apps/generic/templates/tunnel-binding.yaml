@@ -1,0 +1,23 @@
+{{- if .Values.tunnel.enabled }}
+apiVersion: networking.cfargotunnel.com/v1alpha1
+kind: TunnelBinding
+metadata:
+  name: {{ .Values.name }}-binding
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: {{ .Values.name }}
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: dockify
+    dockify.cloud/deployment-id: {{ .Values.deploymentId | quote }}
+subjects:
+  - kind: Service
+    name: {{ .Values.name }}-service
+    spec:
+      fqdn: {{ .Values.tunnel.fqdn }}
+      noTlsVerify: false
+      target: http://{{ .Values.name }}-service.{{ .Values.namespace }}.svc.cluster.local:{{ .Values.service.port }}
+tunnelRef:
+  kind: ClusterTunnel
+  name: {{ .Values.tunnel.clusterTunnel }}
+{{- end }}

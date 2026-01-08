@@ -1,0 +1,6 @@
+apiVersion: v2
+name: dockify-app
+description: Generic Helm chart for source-built applications deployed via Dockify
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
