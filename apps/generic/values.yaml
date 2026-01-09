@@ -101,3 +101,10 @@ securityContext:
   runAsGroup: 1000
   fsGroup: 1000
   runAsNonRoot: true
+
+# Cilium Ingress (direct internet access, bypasses Cloudflare)
+ciliumIngress:
+  enabled: false
+  fqdn: ""                              # e.g., myapp-direct.dockify.cloud
+  tlsSecretName: wildcard-dockify-cloud-tls
+  className: cilium
