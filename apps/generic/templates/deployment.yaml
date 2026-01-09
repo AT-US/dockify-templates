@@ -35,6 +35,15 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.securityContext.enabled }}
+      securityContext:
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.securityContext.runAsGroup }}
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+        {{- if .Values.securityContext.runAsNonRoot }}
+        runAsNonRoot: true
+        {{- end }}
+      {{- end }}
       containers:
         - name: app
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
