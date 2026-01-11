@@ -1,0 +1,17 @@
+{{- if .Values.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.name }}-pdb
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: dockify
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+{{- end }}

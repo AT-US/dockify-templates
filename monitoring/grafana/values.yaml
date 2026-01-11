@@ -1,0 +1,71 @@
+# Grafana Helm Chart Values
+# This chart deploys Grafana with Cloudflare Tunnel exposure
+#
+# Authentication: Admin user with generated password
+# Credentials stored in Infisical for security
+
+namespace: ""
+name: ""
+
+image: grafana/grafana
+tag: latest
+
+# Admin credentials
+# Password is stored in Infisical secret, not here
+admin:
+  user: "admin"
+
+# Infisical integration - secrets sync from Infisical (source of truth)
+# When enabled, InfisicalSecret CRD creates K8s Secret automatically
+infisical:
+  enabled: false
+  hostAPI: "https://vault.dockify.app/api"
+  projectId: ""           # Organization's Infisical project UUID
+  environment: "dev"      # Infisical environment slug
+  secretPath: ""          # Path in Infisical (e.g., /grafana/deployment-name)
+  resyncInterval: 15      # Sync every 15 seconds
+  credentialsSecretName: "infisical-machine-identity"
+  credentialsNamespace: "infisical-system"
+
+# Resource allocation
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# Persistent storage for dashboards, plugins, sqlite db
+storage:
+  size: 5Gi
+  storageClass: ""  # Uses default if empty
+
+# Cloudflare Tunnel configuration (NOT NodePort!)
+tunnel:
+  enabled: true
+  fqdn: ""  # e.g., myapp-grafana.dockify.cloud
+  clusterTunnel: s1-dockify-cloud-tunnel
+
+# Internal service (ClusterIP, not NodePort)
+service:
+  type: ClusterIP
+  port: 3000
+
+# Pod Disruption Budget - ensures graceful handling during node maintenance
+pdb:
+  enabled: true
+  minAvailable: 0  # Allow drain for single replica deployments
+
+# Grafana environment variables
+# See: https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/
+env:
+  # Server settings
+  GF_SERVER_SERVE_FROM_SUB_PATH: "false"
+
+  # Security settings
+  GF_AUTH_ANONYMOUS_ENABLED: "false"
+  GF_USERS_ALLOW_SIGN_UP: "false"
+
+  # Plugins (comma-separated list)
+  # GF_INSTALL_PLUGINS: ""
