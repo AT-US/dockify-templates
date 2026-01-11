@@ -18,6 +18,13 @@ data:
     # Target: all components in single process (monolithic mode)
     target: all
 
+    # Common settings - path_prefix ensures all internal paths use /data
+    common:
+      storage:
+        backend: filesystem
+        filesystem:
+          dir: /data
+
     server:
       http_listen_port: 9009
       grpc_listen_port: 9095
@@ -67,6 +74,10 @@ data:
     store_gateway:
       sharding_ring:
         replication_factor: 1
+
+    # Ruler configuration
+    ruler:
+      rule_path: /data/ruler
 
     # Ruler storage (for alerting rules)
     ruler_storage:
