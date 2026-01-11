@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: dockify
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Required for PVC with ReadWriteOnce
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+        app.kubernetes.io/name: loki
+        app.kubernetes.io/instance: {{ .Values.name }}
+      annotations:
+        # Force pod restart when config changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        dockify.cloud/tunnel-fqdn: {{ .Values.tunnel.fqdn | quote }}
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        runAsNonRoot: true
+      containers:
+        - name: loki
+          image: {{ .Values.image }}:{{ .Values.tag }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/loki/loki-config.yaml
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          ports:
+            - name: http
+              containerPort: 3100
+              protocol: TCP
+            - name: grpc
+              containerPort: 9095
+              protocol: TCP
+          volumeMounts:
+            - name: loki-config
+              mountPath: /etc/loki
+            - name: loki-data
+              mountPath: /loki
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 3100
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3100
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: loki-config
+          configMap:
+            name: {{ .Values.name }}-config
+        - name: loki-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.name }}-pvc
+        - name: tmp
+          emptyDir: {}

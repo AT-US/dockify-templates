@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.name }}-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: dockify
+data:
+  loki-config.yaml: |
+    auth_enabled: {{ .Values.config.auth.enabled }}
+
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9095
+
+    common:
+      instance_addr: 127.0.0.1
+      path_prefix: /loki
+      storage:
+        filesystem:
+          chunks_directory: /loki/chunks
+          rules_directory: /loki/rules
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: inmemory
+
+    query_range:
+      results_cache:
+        cache:
+          embedded_cache:
+            enabled: true
+            max_size_mb: 100
+
+    schema_config:
+      configs:
+        - from: 2020-10-24
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+
+    storage_config:
+      filesystem:
+        directory: /loki/chunks
+      tsdb_shipper:
+        active_index_directory: /loki/tsdb-index
+        cache_location: /loki/tsdb-cache
+
+    {{- if .Values.config.retention.enabled }}
+    compactor:
+      working_directory: /loki/compactor
+      compaction_interval: 10m
+      retention_enabled: true
+      retention_delete_delay: 2h
+      retention_delete_worker_count: 150
+      delete_request_store: filesystem
+
+    limits_config:
+      retention_period: {{ .Values.config.retention.period }}
+      ingestion_rate_mb: {{ trimSuffix "MB" .Values.config.limits.ingestionRate }}
+      ingestion_burst_size_mb: {{ trimSuffix "MB" .Values.config.limits.ingestionBurstSize }}
+      max_streams_per_user: {{ .Values.config.limits.maxStreamsPerUser }}
+      max_entries_limit_per_query: {{ .Values.config.limits.maxEntriesLimitPerQuery }}
+    {{- else }}
+    limits_config:
+      ingestion_rate_mb: {{ trimSuffix "MB" .Values.config.limits.ingestionRate }}
+      ingestion_burst_size_mb: {{ trimSuffix "MB" .Values.config.limits.ingestionBurstSize }}
+      max_streams_per_user: {{ .Values.config.limits.maxStreamsPerUser }}
+      max_entries_limit_per_query: {{ .Values.config.limits.maxEntriesLimitPerQuery }}
+    {{- end }}
+
+    ruler:
+      alertmanager_url: http://localhost:9093
