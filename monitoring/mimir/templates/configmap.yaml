@@ -23,6 +23,10 @@ data:
       grpc_listen_port: 9095
       log_level: warn
 
+    # Activity tracker - write to /tmp (writable emptyDir)
+    activity_tracker:
+      filepath: /tmp/metrics-activity.log
+
     # Block storage configuration (filesystem for single-node)
     blocks_storage:
       backend: filesystem
