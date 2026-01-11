@@ -11,10 +11,18 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
+    # Internal access (no auth) - use this port within the cluster
     - name: http
       port: {{ .Values.service.port }}
       targetPort: 3100
       protocol: TCP
+    {{- if .Values.config.auth.enabled }}
+    # External access (with basic auth via nginx) - tunnel points here
+    - name: http-auth
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    {{- end }}
     - name: grpc
       port: 9095
       targetPort: 9095

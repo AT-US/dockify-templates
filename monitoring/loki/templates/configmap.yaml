@@ -10,7 +10,9 @@ metadata:
     app.kubernetes.io/managed-by: dockify
 data:
   loki-config.yaml: |
-    auth_enabled: {{ .Values.config.auth.enabled }}
+    # auth_enabled controls Loki's multi-tenant mode (X-Scope-OrgID header)
+    # We set it to false for single-tenant mode - external auth is handled by nginx
+    auth_enabled: false
 
     server:
       http_listen_port: 3100

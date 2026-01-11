@@ -24,6 +24,9 @@ spec:
       annotations:
         # Force pod restart when config changes
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.config.auth.enabled }}
+        checksum/nginx-config: {{ include (print $.Template.BasePath "/nginx-configmap.yaml") . | sha256sum }}
+        {{- end }}
         dockify.cloud/tunnel-fqdn: {{ .Values.tunnel.fqdn | quote }}
     spec:
       securityContext:
@@ -32,6 +35,57 @@ spec:
         fsGroup: 10001
         runAsNonRoot: true
       containers:
+        {{- if .Values.config.auth.enabled }}
+        # Nginx sidecar for basic auth on external access (Loki has no built-in HTTP auth)
+        # Internal cluster access on port 3100 bypasses this and has no auth
+        - name: nginx
+          image: nginx:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          ports:
+            - name: http-auth
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: nginx-auth
+              mountPath: /etc/nginx/auth
+              readOnly: true
+            - name: nginx-tmp
+              mountPath: /tmp
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+        {{- end }}
         - name: loki
           image: {{ .Values.image }}:{{ .Values.tag }}
           imagePullPolicy: IfNotPresent
@@ -89,3 +143,15 @@ spec:
             claimName: {{ .Values.name }}-pvc
         - name: tmp
           emptyDir: {}
+        {{- if .Values.config.auth.enabled }}
+        - name: nginx-config
+          configMap:
+            name: {{ .Values.name }}-nginx-config
+        - name: nginx-auth
+          secret:
+            secretName: {{ .Values.name }}-secret
+        - name: nginx-tmp
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        {{- end }}

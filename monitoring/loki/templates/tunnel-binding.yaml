@@ -15,7 +15,13 @@ subjects:
     spec:
       fqdn: {{ .Values.tunnel.fqdn }}
       noTlsVerify: false
+      # When auth enabled, route through nginx (8080) for basic auth
+      # Otherwise direct to Loki (3100)
+      {{- if .Values.config.auth.enabled }}
+      target: http://{{ .Values.name }}-service.{{ .Values.namespace }}.svc.cluster.local:8080
+      {{- else }}
       target: http://{{ .Values.name }}-service.{{ .Values.namespace }}.svc.cluster.local:{{ .Values.service.port }}
+      {{- end }}
 tunnelRef:
   kind: ClusterTunnel
   name: {{ .Values.tunnel.clusterTunnel }}
