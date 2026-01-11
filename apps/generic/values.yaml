@@ -105,6 +105,6 @@ securityContext:
 # Cilium Ingress (direct internet access, bypasses Cloudflare)
 ciliumIngress:
   enabled: false
-  fqdn: ""                              # e.g., myapp-direct.dockify.cloud
-  tlsSecretName: wildcard-dockify-cloud-tls
+  fqdn: ""                              # e.g., myapp.s1.dockify.cloud
+  tlsSecretName: wildcard-s1-dockify-cloud-tls
   className: cilium
