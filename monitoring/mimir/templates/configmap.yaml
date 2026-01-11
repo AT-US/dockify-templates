@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.name }}-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: mimir
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: dockify
+data:
+  mimir.yaml: |
+    # Mimir monolithic mode configuration
+    # Multi-tenancy disabled for single-tenant deployments
+    # External auth is handled by nginx sidecar
+    multitenancy_enabled: false
+
+    # Target: all components in single process (monolithic mode)
+    target: all
+
+    server:
+      http_listen_port: 9009
+      grpc_listen_port: 9095
+      log_level: warn
+
+    # Block storage configuration (filesystem for single-node)
+    blocks_storage:
+      backend: filesystem
+      filesystem:
+        dir: /data/tsdb
+      tsdb:
+        dir: /data/tsdb
+      bucket_store:
+        sync_dir: /data/tsdb-sync
+
+    # Compactor configuration
+    compactor:
+      data_dir: /data/compactor
+      sharding_ring:
+        kvstore:
+          store: memberlist
+      {{- if .Values.config.retention.enabled }}
+      # Retention configuration
+      deletion_delay: 2h
+      {{- end }}
+
+    # Distributor ring configuration
+    distributor:
+      ring:
+        instance_addr: 127.0.0.1
+        kvstore:
+          store: memberlist
+
+    # Ingester configuration
+    ingester:
+      ring:
+        instance_addr: 127.0.0.1
+        kvstore:
+          store: memberlist
+        replication_factor: 1
+
+    # Store gateway configuration
+    store_gateway:
+      sharding_ring:
+        replication_factor: 1
+
+    # Ruler storage (for alerting rules)
+    ruler_storage:
+      backend: filesystem
+      filesystem:
+        dir: /data/rules
+
+    # Limits configuration
+    limits:
+      ingestion_rate: {{ .Values.config.limits.ingestionRate }}
+      ingestion_burst_size: {{ .Values.config.limits.ingestionBurstSize }}
+      max_global_series_per_user: {{ .Values.config.limits.maxGlobalSeriesPerUser }}
+      {{- if .Values.config.retention.enabled }}
+      # Compactor will delete blocks older than this
+      compactor_blocks_retention_period: {{ .Values.config.retention.period }}
+      {{- end }}
+
+    # Memberlist configuration for service discovery
+    memberlist:
+      join_members: []

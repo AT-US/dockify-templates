@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.name }}-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: mimir
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: dockify
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    # Internal access (no auth) - use this port within the cluster
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: 9009
+      protocol: TCP
+    {{- if .Values.config.auth.enabled }}
+    # External access (with basic auth via nginx) - tunnel points here
+    - name: http-auth
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    {{- end }}
+    - name: grpc
+      port: 9095
+      targetPort: 9095
+      protocol: TCP
+  selector:
+    app: {{ .Values.name }}

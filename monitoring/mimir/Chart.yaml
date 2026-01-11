@@ -1,0 +1,6 @@
+apiVersion: v2
+name: mimir
+description: A Helm chart for Grafana Mimir metrics backend
+type: application
+version: 1.0.0
+appVersion: "2.14.0"

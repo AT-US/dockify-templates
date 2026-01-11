@@ -1,0 +1,197 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: mimir
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: dockify
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Required for PVC with ReadWriteOnce
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+        app.kubernetes.io/name: mimir
+        app.kubernetes.io/instance: {{ .Values.name }}
+      annotations:
+        # Force pod restart when config changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.config.auth.enabled }}
+        checksum/nginx-config: {{ include (print $.Template.BasePath "/nginx-configmap.yaml") . | sha256sum }}
+        {{- end }}
+        dockify.cloud/tunnel-fqdn: {{ .Values.tunnel.fqdn | quote }}
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        runAsNonRoot: true
+      {{- if .Values.config.auth.enabled }}
+      # Init container generates htpasswd from MIMIR_AUTH_USER/PASSWORD at runtime
+      # This avoids storing the htpasswd hash in Infisical
+      initContainers:
+        - name: htpasswd-generator
+          image: alpine:3.20
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Generate SHA htpasswd: user:{SHA}base64(sha1(password))
+              HASH=$(echo -n "$MIMIR_AUTH_PASSWORD" | sha1sum | cut -d' ' -f1 | xxd -r -p | base64)
+              echo "$MIMIR_AUTH_USER:{SHA}$HASH" > /auth/.htpasswd
+              echo "Generated htpasswd for user: $MIMIR_AUTH_USER"
+          env:
+            - name: MIMIR_AUTH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.name }}-secret
+                  key: MIMIR_AUTH_USER
+            - name: MIMIR_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.name }}-secret
+                  key: MIMIR_AUTH_PASSWORD
+          volumeMounts:
+            - name: nginx-auth
+              mountPath: /auth
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: false
+            runAsUser: 10001
+            runAsGroup: 10001
+      {{- end }}
+      containers:
+        {{- if .Values.config.auth.enabled }}
+        # Nginx sidecar for basic auth on external access (Mimir has no built-in HTTP auth)
+        # Internal cluster access on port 9009 bypasses this and has no auth
+        - name: nginx
+          image: nginx:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          ports:
+            - name: http-auth
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: nginx-auth
+              mountPath: /etc/nginx/auth
+              readOnly: true
+            - name: nginx-tmp
+              mountPath: /tmp
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+        {{- end }}
+        - name: mimir
+          image: {{ .Values.image }}:{{ .Values.tag }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/mimir/mimir.yaml
+            - -target=all
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          ports:
+            - name: http
+              containerPort: 9009
+              protocol: TCP
+            - name: grpc
+              containerPort: 9095
+              protocol: TCP
+            - name: memberlist
+              containerPort: 7946
+              protocol: TCP
+          volumeMounts:
+            - name: mimir-config
+              mountPath: /etc/mimir
+            - name: mimir-data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 9009
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 9009
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: mimir-config
+          configMap:
+            name: {{ .Values.name }}-config
+        - name: mimir-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.name }}-pvc
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.config.auth.enabled }}
+        - name: nginx-config
+          configMap:
+            name: {{ .Values.name }}-nginx-config
+        - name: nginx-auth
+          emptyDir: {}  # Generated by init container from MIMIR_AUTH_USER/PASSWORD
+        - name: nginx-tmp
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        {{- end }}

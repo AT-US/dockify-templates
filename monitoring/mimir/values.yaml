@@ -1,0 +1,71 @@
+# Mimir Helm Chart Values
+# This chart deploys Grafana Mimir with Cloudflare Tunnel exposure
+#
+# Mimir is a scalable, highly available, multi-tenant metrics backend
+# compatible with Prometheus remote write and PromQL queries.
+
+namespace: ""
+name: ""
+
+image: grafana/mimir
+tag: "2.14.0"
+
+# Infisical integration - secrets sync from Infisical (source of truth)
+# When enabled, InfisicalSecret CRD creates K8s Secret automatically
+infisical:
+  enabled: false
+  hostAPI: "https://vault.dockify.app/api"
+  projectId: ""           # Organization's Infisical project UUID
+  environment: "dev"      # Infisical environment slug
+  secretPath: ""          # Path in Infisical (e.g., /mimir/deployment-name)
+  resyncInterval: 15      # Sync every 15 seconds
+  credentialsSecretName: "infisical-machine-identity"
+  credentialsNamespace: "infisical-system"
+
+# Resource allocation
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+# Persistent storage for metrics
+storage:
+  size: 20Gi
+  storageClass: ""  # Uses default if empty
+
+# Cloudflare Tunnel configuration
+tunnel:
+  enabled: true
+  fqdn: ""  # e.g., myapp-mimir.dockify.cloud
+  clusterTunnel: s1-dockify-cloud-tunnel
+
+# Internal service (ClusterIP)
+service:
+  type: ClusterIP
+  port: 9009
+
+# Pod Disruption Budget
+pdb:
+  enabled: true
+  minAvailable: 0  # Allow drain for single replica deployments
+
+# Mimir configuration
+config:
+  # Authentication (basic auth via nginx sidecar)
+  auth:
+    enabled: false
+    # Credentials stored in Infisical secret when enabled
+
+  # Retention period for metrics
+  retention:
+    enabled: true
+    period: 744h  # 31 days
+
+  # Limits
+  limits:
+    ingestionRate: 10000           # samples per second
+    ingestionBurstSize: 200000     # burst capacity
+    maxGlobalSeriesPerUser: 150000 # max active series
