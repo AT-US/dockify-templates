@@ -1,0 +1,27 @@
+{{- if .Values.datasources }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.name }}-datasources
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: dockify
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    {{- range $index, $ds := .Values.datasources }}
+      - name: {{ $ds.name }}
+        type: {{ $ds.type }}
+        url: {{ $ds.url }}
+        access: proxy
+        isDefault: {{ $ds.isDefault | default false }}
+        {{- if $ds.jsonData }}
+        jsonData:
+          {{- toYaml $ds.jsonData | nindent 10 }}
+        {{- end }}
+    {{- end }}
+{{- end }}

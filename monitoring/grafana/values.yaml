@@ -69,3 +69,15 @@ env:
 
   # Plugins (comma-separated list)
   # GF_INSTALL_PLUGINS: ""
+
+# Provisioned data sources (auto-configured at startup)
+# Used by Grafana Stack to pre-configure Loki, Mimir, Tempo, Pyroscope
+# Example:
+# datasources:
+#   - name: Loki
+#     type: loki
+#     url: http://loki-service:3100
+#     isDefault: false
+#     jsonData:
+#       maxLines: 1000
+datasources: []

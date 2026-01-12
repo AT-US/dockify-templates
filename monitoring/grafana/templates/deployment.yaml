@@ -76,6 +76,11 @@ spec:
           volumeMounts:
             - name: grafana-data
               mountPath: /var/lib/grafana
+            {{- if .Values.datasources }}
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+              readOnly: true
+            {{- end }}
           resources:
             requests:
               cpu: {{ .Values.resources.requests.cpu }}
@@ -103,3 +108,8 @@ spec:
         - name: grafana-data
           persistentVolumeClaim:
             claimName: {{ .Values.name }}-pvc
+        {{- if .Values.datasources }}
+        - name: datasources
+          configMap:
+            name: {{ .Values.name }}-datasources
+        {{- end }}
