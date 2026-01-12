@@ -8,7 +8,7 @@ namespace: ""
 name: ""
 
 image: grafana/tempo
-tag: "2.6.0"
+tag: "2.9.0"
 
 # Infisical integration - secrets sync from Infisical (source of truth)
 # When enabled, InfisicalSecret CRD creates K8s Secret automatically
