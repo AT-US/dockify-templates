@@ -70,9 +70,10 @@ data:
         path: /var/tempo/generator/wal
         remote_write: []
 
-    # Overrides for limits
+    # Overrides for limits (per-tenant or global)
     overrides:
-      defaults:
-        ingestion:
-          max_traces_per_user: {{ .Values.config.limits.maxTracesPerUser }}
-          max_bytes_per_trace: {{ .Values.config.limits.maxBytesPerTrace }}
+      max_global_traces_per_user: {{ .Values.config.limits.maxTracesPerUser }}
+
+    # Usage report disabled
+    usage_report:
+      reporting_enabled: false
