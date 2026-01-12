@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.name }}-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: pyroscope
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: dockify
+data:
+  pyroscope.yaml: |
+    # Pyroscope monolithic mode configuration
+    target: all
+
+    # Multi-tenancy disabled for single-tenant deployments
+    # External auth is handled by nginx sidecar
+    multitenancy_enabled: false
+
+    server:
+      http_listen_port: 4040
+      grpc_listen_port: 9095
+      log_level: warn
+
+    # Storage configuration (filesystem for monolithic mode)
+    storage:
+      backend: filesystem
+      filesystem:
+        dir: /data
+
+    # PyroscopeDB configuration
+    pyroscopedb:
+      max_block_duration: 1h
+      data_path: /data
+      min_free_disk_gb: {{ .Values.config.retention.minFreeDiskGb | default 1 }}
+      enforcement_interval: {{ .Values.config.retention.enforcementInterval | default "5m" }}
+
+    # Limits
+    limits:
+      max_label_names_per_series: {{ .Values.config.limits.maxLabelNamesPerSeries | default 30 }}
+      max_sessions_per_series: {{ .Values.config.limits.maxSessionsPerSeries | default 16 }}
+
+    # Usage report disabled
+    analytics:
+      reporting_enabled: false
