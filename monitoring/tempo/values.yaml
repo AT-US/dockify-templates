@@ -1,0 +1,70 @@
+# Tempo Helm Chart Values
+# This chart deploys Grafana Tempo with Cloudflare Tunnel exposure
+#
+# Tempo is a distributed tracing backend for storing and querying traces
+# from your applications with native OpenTelemetry support.
+
+namespace: ""
+name: ""
+
+image: grafana/tempo
+tag: "2.6.0"
+
+# Infisical integration - secrets sync from Infisical (source of truth)
+# When enabled, InfisicalSecret CRD creates K8s Secret automatically
+infisical:
+  enabled: false
+  hostAPI: "https://vault.dockify.app/api"
+  projectId: ""           # Organization's Infisical project UUID
+  environment: "dev"      # Infisical environment slug
+  secretPath: ""          # Path in Infisical (e.g., /tempo/deployment-name)
+  resyncInterval: 15      # Sync every 15 seconds
+  credentialsSecretName: "infisical-machine-identity"
+  credentialsNamespace: "infisical-system"
+
+# Resource allocation
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+# Persistent storage for traces
+storage:
+  size: 10Gi
+  storageClass: ""  # Uses default if empty
+
+# Cloudflare Tunnel configuration
+tunnel:
+  enabled: true
+  fqdn: ""  # e.g., myapp-tempo.dockify.cloud
+  clusterTunnel: s1-dockify-cloud-tunnel
+
+# Internal service (ClusterIP)
+service:
+  type: ClusterIP
+  port: 3200
+
+# Pod Disruption Budget
+pdb:
+  enabled: true
+  minAvailable: 0  # Allow drain for single replica deployments
+
+# Tempo configuration
+config:
+  # Authentication (basic auth via nginx sidecar)
+  auth:
+    enabled: false
+    # Credentials stored in Infisical secret when enabled
+
+  # Retention period for traces
+  retention:
+    enabled: true
+    period: 744h  # 31 days
+
+  # Limits
+  limits:
+    maxTracesPerUser: 10000
+    maxBytesPerTrace: 5000000  # 5MB

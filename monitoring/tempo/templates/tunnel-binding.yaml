@@ -1,0 +1,28 @@
+{{- if .Values.tunnel.enabled }}
+apiVersion: networking.cfargotunnel.com/v1alpha1
+kind: TunnelBinding
+metadata:
+  name: {{ .Values.name }}-binding
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: dockify
+subjects:
+  - kind: Service
+    name: {{ .Values.name }}-service
+    spec:
+      fqdn: {{ .Values.tunnel.fqdn }}
+      noTlsVerify: false
+      # When auth enabled, route through nginx (8080) for basic auth
+      # Otherwise direct to Tempo (3200)
+      {{- if .Values.config.auth.enabled }}
+      target: http://{{ .Values.name }}-service.{{ .Values.namespace }}.svc.cluster.local:8080
+      {{- else }}
+      target: http://{{ .Values.name }}-service.{{ .Values.namespace }}.svc.cluster.local:{{ .Values.service.port }}
+      {{- end }}
+tunnelRef:
+  kind: ClusterTunnel
+  name: {{ .Values.tunnel.clusterTunnel }}
+{{- end }}

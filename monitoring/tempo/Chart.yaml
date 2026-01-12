@@ -1,0 +1,6 @@
+apiVersion: v2
+name: tempo
+description: A Helm chart for Grafana Tempo distributed tracing
+type: application
+version: 1.0.0
+appVersion: "2.6.0"
